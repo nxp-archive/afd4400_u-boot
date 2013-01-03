@@ -84,15 +84,35 @@
 #define CONFIG_LOADADDR			0x10800000
 #define CONFIG_SYS_TEXT_BASE		0x17800000
 
+#ifdef CONFIG_MEDUSA_BOARD
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"script=boot.scr\0" \
 	"uimage=uImage\0" \
 	"console=ttymxc3\0" \
 	"fdt_high=0xffffffff\0" \
 	"initrd_high=0xffffffff\0" \
-	"mmcdev=1\0" \
-	"mmcpart=2\0" \
-	"mmcroot=/dev/mmcblk0p3 rootwait rw\0" \
+	"bootargs_all=setenv bootargs root=/dev/mtdblock4 "\
+		"rootfstype=jffs2 rw console=ttymxc3,115200 earlyprintk\0" \
+	"bootcmd_nor=echo Booting from nor flash ...; " \
+		"run bootargs_all; " \
+		"cp.b 0x080C0000 ${loadaddr} 0x400000;" \
+		"cp.b 0x0ACC0000 0x11200000 0x20000;" \
+		"bootm ${loadaddr} - 0x11200000 \0"
+
+#define CONFIG_BOOTCOMMAND \
+	"run bootcmd_nor;"
+
+#else
+
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	"script=boot.scr\0" \
+	"uimage=uImage\0" \
+	"console="CONFIG_CONSOLE_DEV"\0" \
+	"fdt_high=0xffffffff\0"   \
+	"initrd_high=0xffffffff\0" \
+	"mmcdev=0\0" \
+	"mmcpart=1\0" \
+	"mmcroot=/dev/mmcblk1p2 rootwait rw\0" \
 	"mmcargs=setenv bootargs console=${console},${baudrate} " \
 		"root=${mmcroot}\0" \
 	"loadbootscript=" \
@@ -105,14 +125,14 @@
 		"bootm\0" \
 	"netargs=setenv bootargs console=${console},${baudrate} " \
 		"root=/dev/nfs " \
-		"ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp\0" \
-	"netboot=echo Booting from net ...; " \
+	"ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp\0" \
+		"netboot=echo Booting from net ...; " \
 		"run netargs; " \
-		"dhcp ${uimage}; bootm\0" \
+	"dhcp ${uimage}; bootm\0" \
 
 #define CONFIG_BOOTCOMMAND \
 	"mmc dev ${mmcdev};" \
-	"mmc dev ${mmcdev}; if mmc rescan; then " \
+	"if mmc rescan ${mmcdev}; then " \
 		"if run loadbootscript; then " \
 			"run bootscript; " \
 		"else " \
@@ -122,6 +142,8 @@
 			"fi; " \
 		"fi; " \
 	"else run netboot; fi"
+
+#endif
 
 #define CONFIG_ARP_TIMEOUT	200UL
 
