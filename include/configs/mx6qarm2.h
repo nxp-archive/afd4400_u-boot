@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2010-2011 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2013 Freescale Semiconductor, Inc.
+ * Partha Hazra <b43678@freescale.com>
  *
  * Configuration settings for the Freescale i.MX6Q Armadillo2 board.
  *
@@ -29,13 +30,11 @@
 
 #define CONFIG_DISPLAY_CPUINFO
 #define CONFIG_DISPLAY_BOARDINFO
-
 #include <asm/arch/imx-regs.h>
 
 #define CONFIG_CMDLINE_TAG
 #define CONFIG_SETUP_MEMORY_TAGS
 #define CONFIG_INITRD_TAG
-
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + 2 * 1024 * 1024)
 
@@ -58,6 +57,8 @@
 #define CONFIG_CMD_FAT
 #define CONFIG_DOS_PARTITION
 
+/*WEIM-NOR*/
+#define CONFIG_CMD_WEIM_NOR
 #define CONFIG_CMD_PING
 #define CONFIG_CMD_DHCP
 #define CONFIG_CMD_MII
@@ -127,7 +128,7 @@
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_LONGHELP
 #define CONFIG_SYS_HUSH_PARSER
-#define CONFIG_SYS_PROMPT		"MX6QARM2 U-Boot > "
+#define CONFIG_SYS_PROMPT		"MX6qarm2-Medusa U-Boot > "
 #define CONFIG_AUTO_COMPLETE
 #define CONFIG_SYS_CBSIZE		256
 
@@ -158,13 +159,49 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-/* FLASH and environment organization */
-#define CONFIG_SYS_NO_FLASH
+/*
+ ** WEIM NOR Config
+*/
+#ifdef CONFIG_CMD_WEIM_NOR
+	#define CONFIG_SYS_FLASH_CFI
+	#define CONFIG_FLASH_CFI_DRIVER
+	#define CONFIG_SYS_FLASH_BASE	0x08000000
+	#define CONFIG_SYS_FLASH_SIZE	0x08000000
+	#define CONFIG_SYS_FLASH_USE_BUFFER_WRITE
+	#define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
+	#define CONFIG_SYS_FLASH_BANKS_LIST	{CONFIG_SYS_FLASH_BASE}
+	#define CONFIG_SYS_MAX_FLASH_BANKS	1
+	#define CONFIG_SYS_MAX_FLASH_SECT	1024
+	#define CONFIG_SYS_FLASH_PROTECTION
+#endif
 
-#define CONFIG_ENV_OFFSET		(6 * 64 * 1024)
-#define CONFIG_ENV_SIZE			(8 * 1024)
-#define CONFIG_ENV_IS_IN_MMC
-#define CONFIG_SYS_MMC_ENV_DEV		1
+
+/* FLASH and environment organization */
+#ifndef CONFIG_CMD_WEIM_NOR
+	#define CONFIG_SYS_NO_FLASH
+#else
+	#define CONFIG_SYS_MONITOR_BASE	CONFIG_SYS_FLASH_BASE
+	#define CONFIG_SYS_MONITOR_LEN	0x80000
+
+	#define CONFIG_ENV_SECT_SIZE	0x00020000   /*128KiB sector size */
+	#define CONFIG_ENV_SIZE		CONFIG_ENV_SECT_SIZE
+
+	#define CONFIG_ENV_OFFSET	(8 * 64 * 1024)
+	#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + \
+							CONFIG_ENV_SIZE)
+	#define CONFIG_ENV_SIZE_REDUND	CONFIG_ENV_SIZE
+	#define CONFIG_ENV_ADDR		(CONFIG_SYS_MONITOR_BASE + 0x0080000)
+	#define CONFIG_FSL_ENV_IN_FLASH
+#endif
+
+#ifdef CONFIG_FSL_ENV_IN_FLASH
+	#define CONFIG_ENV_IS_IN_FLASH          1
+#else
+	#define CONFIG_ENV_OFFSET		(6 * 64 * 1024)
+	#define CONFIG_ENV_SIZE			(8 * 1024)
+	#define CONFIG_ENV_IS_IN_MMC
+	#define CONFIG_SYS_MMC_ENV_DEV		1
+#endif
 
 #define CONFIG_OF_LIBFDT
 #define CONFIG_CMD_BOOTZ
