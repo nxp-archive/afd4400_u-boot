@@ -17,7 +17,7 @@
  * MA 02111-1307 USA
  *
  *
- * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011-2013 Freescale Semiconductor, Inc.
  * author Andy Fleming
  *
  * Based loosely off of Linux's PHY Lib
@@ -553,7 +553,7 @@ static struct phy_device *phy_device_create(struct mii_dev *bus, int addr,
  */
 static int get_phy_id(struct mii_dev *bus, int addr, int devad, u32 *phy_id)
 {
-	int phy_reg;
+	int phy_reg = 0;
 
 	/* Grab the bits from PHYIR1, and put them
 	 * in the upper half */

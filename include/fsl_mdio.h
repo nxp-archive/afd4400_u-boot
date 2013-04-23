@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
+ * Copyright 2009-2013 Freescale Semiconductor, Inc.
  *	Jun-jie Zhang <b18070@freescale.com>
  *	Mingkai Hu <Mingkai.hu@freescale.com>
  *
@@ -44,6 +44,10 @@
 #define MIIMIND_BUSY		0x00000001
 #define MIIMIND_NOTVALID	0x00000004
 
+void setbits_32(volatile void *addr , unsigned int val);
+void clrbits_32(volatile void *addr , unsigned int val);
+void write_32(volatile void *addr , unsigned int val);
+unsigned int read_32(volatile void *addr);
 void tsec_local_mdio_write(struct tsec_mii_mng *phyregs, int port_addr,
 		int dev_addr, int reg, int value);
 int tsec_local_mdio_read(struct tsec_mii_mng *phyregs, int port_addr,

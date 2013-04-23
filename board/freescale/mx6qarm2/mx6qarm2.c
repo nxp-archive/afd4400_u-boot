@@ -32,8 +32,11 @@
 #include <mmc.h>
 #include <fsl_esdhc.h>
 #include <miiphy.h>
+#include <tsec.h>
 #include <netdev.h>
 #include <asm/arch/clock.h>
+#include <fsl_mdio.h>
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |		\
@@ -331,7 +334,41 @@ int fecmxc_mii_postcall(int phy)
 
 	return 0;
 }
+#ifdef CONFIG_TSEC_ENET
+int board_eth_init(bd_t *bis)
+{
+	int ret;
+	struct fsl_pq_mdio_info mdio_info;
+	struct tsec_info_struct tsec_info[2];
+	u32 pordevsr;
 
+	int num = 0;
+
+#ifdef CONFIG_TSEC1
+	SET_STD_TSEC_INFO(tsec_info[num], 1);
+	num++;
+#endif
+
+#ifdef CONFIG_TSEC2
+	SET_STD_TSEC_INFO(tsec_info[num], 2);
+	num++;
+#endif
+
+	if (!num) {
+		printf("No TSECs initialized\n");
+		return 0;
+	}
+
+	mdio_info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO1_BASE_ADDR;
+	mdio_info.name = DEFAULT_MII_NAME;
+
+	fsl_pq_mdio_init(bis, &mdio_info);
+	if (num != tsec_eth_init(bis, tsec_info, num))
+		printf("TSEC : Unable to register initialize TSEC\n");
+
+	return 0;
+}
+#else
 int board_eth_init(bd_t *bis)
 {
 	struct eth_device *dev;
@@ -358,6 +395,7 @@ int board_eth_init(bd_t *bis)
 	return 0;
 }
 
+#endif
 int board_early_init_f(void)
 {
 	setup_iomux_uart();
