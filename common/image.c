@@ -150,6 +150,8 @@ static const table_entry_t uimage_type[] = {
 	{	IH_TYPE_SCRIPT,     "script",	  "Script",		},
 	{	IH_TYPE_STANDALONE, "standalone", "Standalone Program", },
 	{	IH_TYPE_UBLIMAGE,   "ublimage",   "Davinci UBL image",},
+	{	IH_TYPE_D4400IMAGE, "d4400image", \
+					"Freescale D4400 Boot Image",},
 	{	-1,		    "",		  "",			},
 };
 

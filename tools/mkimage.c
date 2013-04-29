@@ -167,6 +167,8 @@ main (int argc, char **argv)
 	init_ubl_image_type();
 	/* Init Davinci AIS support */
 	init_ais_image_type();
+	/* Init D4400 Image support*/
+	init_d4400_image_type();
 
 	params.cmdname = *argv;
 	params.addr = params.ep = 0;

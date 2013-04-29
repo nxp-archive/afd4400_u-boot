@@ -475,6 +475,10 @@ $(obj)u-boot.img:	$(obj)u-boot.bin
 $(obj)u-boot.imx: $(obj)u-boot.bin depend
 		$(MAKE) -C $(SRCTREE)/arch/arm/imx-common $(OBJTREE)/u-boot.imx
 
+$(obj)u-boot.d4400:       $(obj)u-boot.bin
+		$(obj)tools/mkimage -n  $(CONFIG_D4400_CONFIG) -T d4400image \
+		-e $(CONFIG_SYS_TEXT_BASE) -d $< $@
+
 $(obj)u-boot.kwb:       $(obj)u-boot.bin
 		$(obj)tools/mkimage -n $(CONFIG_SYS_KWD_CONFIG) -T kwbimage \
 		-a $(CONFIG_SYS_TEXT_BASE) -e $(CONFIG_SYS_TEXT_BASE) -d $< $@
@@ -867,6 +871,7 @@ clobber:	tidy
 	@rm -f $(obj)u-boot.imx
 	@rm -f $(obj)u-boot-with-spl.imx
 	@rm -f $(obj)u-boot-with-nand-spl.imx
+	@rm -f $(obj)u-boot.d4400
 	@rm -f $(obj)u-boot.ubl
 	@rm -f $(obj)u-boot.ais
 	@rm -f $(obj)u-boot.dtb

@@ -97,6 +97,7 @@ NOPED_OBJ_FILES-y += kwbimage.o
 NOPED_OBJ_FILES-y += pblimage.o
 NOPED_OBJ_FILES-y += imximage.o
 NOPED_OBJ_FILES-y += image-host.o
+NOPED_OBJ_FILES-y += d4400image.o
 NOPED_OBJ_FILES-y += omapimage.o
 NOPED_OBJ_FILES-y += mkenvimage.o
 NOPED_OBJ_FILES-y += mkimage.o
@@ -222,6 +223,7 @@ $(obj)mkimage$(SFX):	$(obj)aisimage.o \
 			$(obj)os_support.o \
 			$(obj)omapimage.o \
 			$(obj)sha1.o \
+			$(obj)d4400image.o \
 			$(obj)ublimage.o \
 			$(LIBFDT_OBJS)
 	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^

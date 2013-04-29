@@ -534,3 +534,7 @@ N: Philip Balister
 E: philip@opensdr.com
 D: Port to Lyrtech SFFSDR development board.
 W: www.opensdr.com
+
+N: Partha Hazra
+E: b44332@freescale.com
+D: Support for Freescale D4400

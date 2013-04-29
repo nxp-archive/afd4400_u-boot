@@ -53,6 +53,7 @@ COBJS-$(CONFIG_SANDBOX_SERIAL) += sandbox.o
 COBJS-$(CONFIG_SCIF_CONSOLE) += serial_sh.o
 COBJS-$(CONFIG_ZYNQ_SERIAL) += serial_zynq.o
 COBJS-$(CONFIG_BFIN_SERIAL) += serial_bfin.o
+COBJS-$(CONFIG_D4400_UART) += serial_d4400.o
 
 ifndef CONFIG_SPL_BUILD
 COBJS-$(CONFIG_USB_TTY) += usbtty.o
