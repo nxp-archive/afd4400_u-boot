@@ -7,7 +7,7 @@
  *  terms of the GNU Public License, Version 2, incorporated
  *  herein by reference.
  *
- * Copyright 2004, 2007, 2009, 2011  Freescale Semiconductor, Inc.
+ * Copyright 2004, 2007, 2009, 2011, 2013  Freescale Semiconductor, Inc.
  * (C) Copyright 2003, Motorola, Inc.
  * maintained by Xianghua Xiao (x.xiao@motorola.com)
  * author Andy Fleming
@@ -23,12 +23,72 @@
 #include <asm/fsl_enet.h>
 
 #define TSEC_SIZE 		0x01000
-#define TSEC_MDIO_OFFSET	0x01000
 
 #define CONFIG_SYS_MDIO_BASE_ADDR (MDIO_BASE_ADDR + 0x520)
 
 #define DEFAULT_MII_NAME "FSL_MDIO"
 
+#ifdef CONFIG_MEDUSA_FPGA /* For Medusa */
+
+#define TSEC_DEV_ID		0x01240201
+
+#define AIPS_WEIM_CS1_OFFSET	0x04000000
+#define OCRAM_OFFSET		0x0c000000
+
+#define TSEC_AIPS_OFFSET	0x01480000
+#define TSEC_MDIO_AIPS_OFFSET	0x01484000
+
+#define TSEC_MII_REG_OFFSET	0x520
+#define TSEC_MDIO_OFFSET	0x0
+
+#define TSEC_BASE_ADDR (WEIM_ARB_BASE_ADDR + AIPS_WEIM_CS1_OFFSET \
+	+ TSEC_AIPS_OFFSET)
+
+#define MDIO_BASE_ADDR (WEIM_ARB_BASE_ADDR + AIPS_WEIM_CS1_OFFSET \
+	+ TSEC_MDIO_AIPS_OFFSET + TSEC_MII_REG_OFFSET)
+
+#define CONFIG_SYS_MDIO1_BASE_ADDR MDIO_BASE_ADDR
+
+#endif
+
+#ifdef CONFIG_D4400 /* For D4400 */
+
+#define TSEC_BASE_ADDR			VETSEC0_GROUP0_BASE_ADDR
+#define TSEC_MDIO_OFFSET		0x520
+#define CONFIG_SYS_MDIO1_BASE_ADDR	VETSEC0_MDIO_BASE_ADDR
+#define CONFIG_SYS_MDIO2_BASE_ADDR	VETSEC1_MDIO_BASE_ADDR
+
+#endif
+
+#if defined CONFIG_D4400 || defined CONFIG_MX6Q
+
+#define STD_TSEC_INFO(num) \
+{			\
+	.regs = (tsec_t *)(TSEC_BASE_ADDR + ((num - 1) * TSEC_SIZE)), \
+	.miiregs_sgmii = (struct tsec_mii_mng *) \
+					(CONFIG_SYS_MDIO##num##_BASE_ADDR \
+					 + TSEC_MDIO_OFFSET), \
+	.devname = CONFIG_TSEC##num##_NAME, \
+	.phyaddr = TSEC##num##_PHY_ADDR, \
+	.flags = TSEC##num##_FLAGS, \
+	.mii_devname = DEFAULT_MII_NAME \
+}
+
+#define SET_STD_TSEC_INFO(x, num) \
+{			\
+	x.regs = (tsec_t *)(TSEC_BASE_ADDR + ((num - 1) * TSEC_SIZE)); \
+	x.miiregs_sgmii = (struct tsec_mii_mng *) \
+					(CONFIG_SYS_MDIO##num##_BASE_ADDR \
+					  + TSEC_MDIO_OFFSET); \
+	x.devname = CONFIG_TSEC##num##_NAME; \
+	x.phyaddr = TSEC##num##_PHY_ADDR; \
+	x.flags = TSEC##num##_FLAGS;\
+	x.mii_devname = DEFAULT_MII_NAME;\
+}
+
+#else
+
+#define TSEC_MDIO_OFFSET	0x01000
 #define STD_TSEC_INFO(num) \
 {			\
 	.regs = (tsec_t *)(TSEC_BASE_ADDR + ((num - 1) * TSEC_SIZE)), \
@@ -50,6 +110,8 @@
 	x.flags = TSEC##num##_FLAGS;\
 	x.mii_devname = DEFAULT_MII_NAME;\
 }
+
+#endif
 
 #define MAC_ADDR_LEN 6
 

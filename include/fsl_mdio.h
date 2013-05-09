@@ -1,7 +1,8 @@
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
+ * Copyright 2009-2012, 2013 Freescale Semiconductor, Inc.
  *	Jun-jie Zhang <b18070@freescale.com>
  *	Mingkai Hu <Mingkai.hu@freescale.com>
+ *	Arpit Goel <B44344@freescale.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -43,6 +44,13 @@
 /* MII Management Indicator Register */
 #define MIIMIND_BUSY		0x00000001
 #define MIIMIND_NOTVALID	0x00000004
+
+#ifdef CONFIG_ARM
+#define mem_sync() asm("dmb")
+#endif
+#ifdef CONFIG_PPC
+#define mem_sync() asm("sync")
+#endif
 
 void tsec_local_mdio_write(struct tsec_mii_mng *phyregs, int port_addr,
 		int dev_addr, int reg, int value);

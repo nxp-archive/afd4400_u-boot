@@ -5,7 +5,7 @@
  * terms of the GNU Public License, Version 2, incorporated
  * herein by reference.
  *
- * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011-2013 Freescale Semiconductor, Inc.
  * author Andy Fleming
  *
  */
@@ -15,14 +15,6 @@
 #ifdef CONFIG_PHYLIB
 
 #define CONFIG_PHY_VITESSE
-#define CONFIG_PHY_MARVELL
-#define CONFIG_PHY_MICREL
-#define CONFIG_PHY_BROADCOM
-#define CONFIG_PHY_DAVICOM
-#define CONFIG_PHY_REALTEK
-#define CONFIG_PHY_NATSEMI
-#define CONFIG_PHY_LXT
-#define CONFIG_PHY_ATHEROS
 #define CONFIG_PHY_SMSC
 
 #ifdef CONFIG_PHYLIB_10G

@@ -26,6 +26,7 @@
 #include <asm/arch/d4400-regs.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/arch/fsl_serdes.h>
 
 u8 get_silicon_rev(void)
 {
@@ -119,7 +120,7 @@ void enable_caches(void)
 #endif
 
 #if defined(CONFIG_TSEC_ENET)
-void d4400_get_mac_from_fuse(int dev_id, unsigned char *mac)
+void d4400_get_mac_eth0_from_fuse(int dev_id, unsigned char *mac)
 {
 	struct iim_fuse_t *iim_f = (struct iim_fuse_t *)(IIM_BASE_ADDR +
 			IIM_FUSE_BITS_OFFSET);
@@ -131,4 +132,21 @@ void d4400_get_mac_from_fuse(int dev_id, unsigned char *mac)
 	mac[4] = (unsigned char)readl(&iim_f->macaddr4);
 	mac[5] = (unsigned char)readl(&iim_f->macaddr5);
 }
+
+unsigned int d4400_get_eth0_mode()
+{
+	struct src *src_p = (struct src *)(SRC_BASE_ADDR);
+
+	return (src_p->sbmr & SRC_SBMR_ETH_MODE_MASK) >>
+			SRC_SBMR_ETH_MODE_SHIFT;
+}
+
+unsigned int d4400_get_phy_addr_eth0_from_fuse()
+{
+	struct iim_fuse_t *iim_f = (struct iim_fuse_t *)(IIM_BASE_ADDR +
+			IIM_FUSE_BITS_OFFSET);
+
+	return iim_f->ext_eth_phy_addr;
+}
+
 #endif

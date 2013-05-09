@@ -280,6 +280,9 @@ extern inline void out_be32(volatile unsigned __iomem *addr, u32 val)
 #define setbits_8(addr, set) setbits(8, addr, set)
 #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
 
+#define clrbits_32(addr , val) clrbits_be32(addr, val);
+#define setbits_32(addr , val) setbits_be32(addr, val);
+
 /*
  * Given a physical address and a length, return a virtual address
  * that can be used to access the memory range with the caching

@@ -1,7 +1,8 @@
 /*
- * Copyright 2009-2010 Freescale Semiconductor, Inc.
+ * Copyright 2009-2010, 2013 Freescale Semiconductor, Inc.
  *	Jun-jie Zhang <b18070@freescale.com>
  *	Mingkai Hu <Mingkai.hu@freescale.com>
+ *	Arpit Goel <B44344@freescale.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -26,17 +27,21 @@
 #include <asm/errno.h>
 #include <asm/fsl_enet.h>
 
+
 void tsec_local_mdio_write(struct tsec_mii_mng *phyregs, int port_addr,
 		int dev_addr, int regnum, int value)
 {
 	int timeout = 1000000;
 
-	out_be32(&phyregs->miimadd, (port_addr << 8) | (regnum & 0x1f));
-	out_be32(&phyregs->miimcon, value);
-	asm("sync");
+	writel((port_addr << 8) | (regnum & 0x1f), &phyregs->miimadd);
+	writel(value, &phyregs->miimcon);
+	mem_sync();
 
-	while ((in_be32(&phyregs->miimind) & MIIMIND_BUSY) && timeout--)
+	while ((readl(&phyregs->miimind) & MIIMIND_BUSY) && timeout--)
 		;
+
+	if (0 == timeout)
+		printf("TSEC MDIO write failed\n");
 }
 
 int tsec_local_mdio_read(struct tsec_mii_mng *phyregs, int port_addr,
@@ -47,23 +52,26 @@ int tsec_local_mdio_read(struct tsec_mii_mng *phyregs, int port_addr,
 
 	/* Put the address of the phy, and the register
 	 * number into MIIMADD */
-	out_be32(&phyregs->miimadd, (port_addr << 8) | (regnum & 0x1f));
+	writel((port_addr << 8) | (regnum & 0x1f), &phyregs->miimadd);
 
 	/* Clear the command register, and wait */
-	out_be32(&phyregs->miimcom, 0);
-	asm("sync");
+	writel(0, &phyregs->miimcom);
+	mem_sync();
 
 	/* Initiate a read command, and wait */
-	out_be32(&phyregs->miimcom, MIIMCOM_READ_CYCLE);
-	asm("sync");
+	writel(MIIMCOM_READ_CYCLE, &phyregs->miimcom);
+	mem_sync();
 
 	/* Wait for the the indication that the read is done */
-	while ((in_be32(&phyregs->miimind) & (MIIMIND_NOTVALID | MIIMIND_BUSY))
+	while ((readl(&phyregs->miimind) & (MIIMIND_NOTVALID | MIIMIND_BUSY))
 			&& timeout--)
 		;
 
+	if (0 == timeout)
+		printf("TSEC MDIO read failed\n");
+
 	/* Grab the value read from the PHY */
-	value = in_be32(&phyregs->miimstat);
+	value = readl(&phyregs->miimstat);
 
 	return value;
 }
@@ -71,13 +79,22 @@ int tsec_local_mdio_read(struct tsec_mii_mng *phyregs, int port_addr,
 static int fsl_pq_mdio_reset(struct mii_dev *bus)
 {
 	struct tsec_mii_mng *regs = bus->priv;
+#ifdef CONFIG_MEDUSA_FPGA
+	int mask = 0;
 
+	/*Code for FPGA delay*/
+	printf("Waiting for FPGA INIT ");
+	mask = readl(&regs->miimcfg);
+	while (0x00000007 != mask)
+		mask = readl(&regs->miimcfg);
+	printf("0x%x\n", readl(&regs->miimcfg));
+#endif
 	/* Reset MII (due to new addresses) */
-	out_be32(&regs->miimcfg, MIIMCFG_RESET_MGMT);
+	writel(MIIMCFG_RESET_MGMT, &regs->miimcfg);
 
-	out_be32(&regs->miimcfg, MIIMCFG_INIT_VALUE);
+	writel(MIIMCFG_INIT_VALUE, &regs->miimcfg);
 
-	while (in_be32(&regs->miimind) & MIIMIND_BUSY)
+	while (readl(&regs->miimind) & MIIMIND_BUSY)
 		;
 
 	return 0;
