@@ -149,9 +149,9 @@ void __udelay(unsigned long usec)
 	ulong tmo;
 
 	tmo = us_to_tick(usec);
-	tmp = get_ticks() - tmo;	/* get current timestamp */
+	tmp = get_ticks() + tmo;	/* get current timestamp */
 
-	while (get_ticks() > tmp)	/* loop till event */
+	while (get_ticks() < tmp)	/* loop till event */
 		 /*NOP*/;
 }
 
