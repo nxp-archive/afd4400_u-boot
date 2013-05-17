@@ -155,7 +155,7 @@ static void d4400_serial_setbrg(void)
 
 	__REG(UART_PHYS + UFCR) = UFCR_RFDIV_BY_1;
 	__REG(UART_PHYS + UBIR) = 0xf;
-	__REG(UART_PHYS + UBMR) = clk / gd->baudrate;
+	__REG(UART_PHYS + UBMR) = (clk / gd->baudrate)-1;
 
 }
 
@@ -204,17 +204,17 @@ static int d4400_serial_init(void)
 		if (__REG(UART_PHYS + UCR2) & UCR2_SRST)
 			break;
 	}
-	__REG(UART_PHYS + UCR1) = UCR1_UARTEN;
+	__REG(UART_PHYS + UCR1) |= UCR1_UARTEN;
 
 	serial_setbrg();
 
-	__REG(UART_PHYS + UCR2) = UCR2_WS | UCR2_IRTS | UCR2_RXEN |\
+	__REG(UART_PHYS + UCR2) |= UCR2_WS | UCR2_IRTS | UCR2_RXEN |\
 					UCR2_TXEN | UCR2_CTSC;
 
-	__REG(UART_PHYS + UCR3) = UCR3_RXDMUXSEL | UCR3_DCD |\
+	__REG(UART_PHYS + UCR3) |= UCR3_RXDMUXSEL | UCR3_DCD |\
 							UCR3_DSR | UCR3_RI;
 
-	__REG(UART_PHYS + UCR4) = UCR4_LPBYP;
+	__REG(UART_PHYS + UCR4) |= UCR4_LPBYP;
 
 	return 0;
 }
