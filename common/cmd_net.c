@@ -299,27 +299,6 @@ U_BOOT_CMD(
 	"pingAddress"
 );
 #endif
-#if defined(CONFIG_TSEC_ENET)
-#if defined(CONFIG_TSEC_CMD)
-DECLARE_GLOBAL_DATA_PTR;
-static int do_tsec_start(cmd_tbl_t *cmdtp, int flag, int argc,
-		char * const argv[])
-{
-	if (argc < 1)
-		return -1;
-
-	board_eth_init(gd->bd);
-
-	return 0;
-}
-
-U_BOOT_CMD(
-	tsec_start,	1,	1,	do_tsec_start,
-	"send ICMP ECHO_REQUEST to network host",
-	"pingAddress"
-);
-#endif
-#endif
 
 #if defined(CONFIG_CMD_CDP)
 

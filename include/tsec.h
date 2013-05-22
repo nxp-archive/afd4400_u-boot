@@ -7,7 +7,7 @@
  *  terms of the GNU Public License, Version 2, incorporated
  *  herein by reference.
  *
- * Copyright 2004, 2007, 2009, 2011, 2013  Freescale Semiconductor, Inc.
+ * Copyright 2004, 2007, 2009, 2011  Freescale Semiconductor, Inc.
  * (C) Copyright 2003, Motorola, Inc.
  * maintained by Xianghua Xiao (x.xiao@motorola.com)
  * author Andy Fleming
@@ -22,45 +22,18 @@
 #include <phy.h>
 #include <asm/fsl_enet.h>
 
-#define TSEC_SIZE		0x01000
-#define DEFAULT_MII_NAME	"FSL_MDIO"
+#define TSEC_SIZE 		0x01000
+#define TSEC_MDIO_OFFSET	0x01000
 
-#ifdef MEDUSA_FPGA_CODE /* For Medusa */
+#define CONFIG_SYS_MDIO_BASE_ADDR (MDIO_BASE_ADDR + 0x520)
 
-#define TSEC_DEV_ID		0x01240201
-
-#define AIPS_WEIM_CS1_OFFSET	0x04000000
-#define OCRAM_OFFSET		0x0c000000
-
-#define TSEC_AIPS_OFFSET	0x01480000
-#define TSEC_MDIO_AIPS_OFFSET	0x01484000
-
-#define TSEC_MII_REG_OFFSET	0x520
-#define TSEC_MDIO_OFFSET	0x0
-
-#define TSEC_BASE_ADDR (WEIM_ARB_BASE_ADDR + AIPS_WEIM_CS1_OFFSET \
-	+ TSEC_AIPS_OFFSET)
-
-#define MDIO_BASE_ADDR (WEIM_ARB_BASE_ADDR + AIPS_WEIM_CS1_OFFSET \
-	+ TSEC_MDIO_AIPS_OFFSET + TSEC_MII_REG_OFFSET)
-
-#define CONFIG_SYS_MDIO1_BASE_ADDR MDIO_BASE_ADDR
-
-#else /* For D4400 */
-
-#define TSEC_BASE_ADDR			VETSEC0_GROUP0_BASE_ADDR
-#define TSEC_MDIO_OFFSET		0x520
-#define CONFIG_SYS_MDIO1_BASE_ADDR	VETSEC0_MDIO_BASE_ADDR
-#define CONFIG_SYS_MDIO2_BASE_ADDR	VETSEC1_MDIO_BASE_ADDR
-
-#endif
+#define DEFAULT_MII_NAME "FSL_MDIO"
 
 #define STD_TSEC_INFO(num) \
 {			\
 	.regs = (tsec_t *)(TSEC_BASE_ADDR + ((num - 1) * TSEC_SIZE)), \
-	.miiregs_sgmii = (struct tsec_mii_mng *) \
-					(CONFIG_SYS_MDIO##num##_BASE_ADDR \
-					 + TSEC_MDIO_OFFSET), \
+	.miiregs_sgmii = (struct tsec_mii_mng *)(CONFIG_SYS_MDIO_BASE_ADDR \
+					 + (num - 1) * TSEC_MDIO_OFFSET), \
 	.devname = CONFIG_TSEC##num##_NAME, \
 	.phyaddr = TSEC##num##_PHY_ADDR, \
 	.flags = TSEC##num##_FLAGS, \
@@ -70,9 +43,8 @@
 #define SET_STD_TSEC_INFO(x, num) \
 {			\
 	x.regs = (tsec_t *)(TSEC_BASE_ADDR + ((num - 1) * TSEC_SIZE)); \
-	x.miiregs_sgmii = (struct tsec_mii_mng *) \
-					(CONFIG_SYS_MDIO##num##_BASE_ADDR \
-					  + TSEC_MDIO_OFFSET); \
+	x.miiregs_sgmii = (struct tsec_mii_mng *)(CONFIG_SYS_MDIO_BASE_ADDR \
+					  + (num - 1) * TSEC_MDIO_OFFSET); \
 	x.devname = CONFIG_TSEC##num##_NAME; \
 	x.phyaddr = TSEC##num##_PHY_ADDR; \
 	x.flags = TSEC##num##_FLAGS;\
@@ -95,8 +67,8 @@
 
 /* TBI MDIO register bit fields*/
 #define TBICON_CLK_SELECT	0x0020
-#define TBIANA_ASYMMETRIC_PAUSE	0x0100
-#define TBIANA_SYMMETRIC_PAUSE	0x0080
+#define TBIANA_ASYMMETRIC_PAUSE 0x0100
+#define TBIANA_SYMMETRIC_PAUSE  0x0080
 #define TBIANA_HALF_DUPLEX	0x0040
 #define TBIANA_FULL_DUPLEX	0x0020
 #define TBICR_PHY_RESET		0x8000
@@ -125,6 +97,7 @@
 #define MACCFG2_IF		0x00000300
 #define MACCFG2_GMII		0x00000200
 #define MACCFG2_MII		0x00000100
+
 #define ECNTRL_INIT_SETTINGS	0x00001000
 #define ECNTRL_TBI_MODE		0x00000020
 #define ECNTRL_REDUCED_MODE	0x00000010
@@ -133,12 +106,13 @@
 #define ECNTRL_SGMII_MODE	0x00000002
 
 #ifndef CONFIG_SYS_TBIPA_VALUE
-#define CONFIG_SYS_TBIPA_VALUE	0x1f
+    #define CONFIG_SYS_TBIPA_VALUE	0x1f
 #endif
 
 #define MRBLR_INIT_SETTINGS	PKTSIZE_ALIGN
 
 #define MINFLR_INIT_SETTINGS	0x00000040
+
 #define DMACTRL_INIT_SETTINGS	0x000000c3
 #define DMACTRL_GRS		0x00000010
 #define DMACTRL_GTS		0x00000008
@@ -214,16 +188,16 @@
 
 typedef struct txbd8
 {
-	ushort	status;	/* Status Fields */
-	ushort	length;	/* Buffer length */
-	uint	bufPtr;	/* Buffer Pointer */
+	ushort	     status;	     /* Status Fields */
+	ushort	     length;	     /* Buffer length */
+	uint	     bufPtr;	     /* Buffer Pointer */
 } txbd8_t;
 
 typedef struct rxbd8
 {
-	ushort	status;	/* Status Fields */
-	ushort	length;	/* Buffer Length */
-	uint	bufPtr;	/* Buffer Pointer */
+	ushort	     status;	     /* Status Fields */
+	ushort	     length;	     /* Buffer Length */
+	uint	     bufPtr;	     /* Buffer Pointer */
 } rxbd8_t;
 
 typedef struct rmon_mib
@@ -395,8 +369,8 @@ typedef struct tsec
 
 	/* Pattern Registers (0x2_nb00) */
 	uint	resb00[62];
-	uint	attr;	/* Default Attribute Register */
-	uint	attreli;/* Default Attribute Extract Length and Index */
+	uint	attr;	   /* Default Attribute Register */
+	uint	attreli;	   /* Default Attribute Extract Length and Index */
 
 	/* TSEC Future Expansion Space (0x2_nc00-0x2_nffc) */
 	uint	resc00[256];
@@ -428,7 +402,7 @@ struct tsec_info_struct {
 	unsigned int phyaddr;
 	u32 flags;
 };
-void mem_sync(void);
+
 int tsec_standard_init(bd_t *bis);
 int tsec_eth_init(bd_t *bis, struct tsec_info_struct *tsec_info, int num);
 

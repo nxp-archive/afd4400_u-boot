@@ -28,5 +28,4 @@
 u8 get_silicon_rev(void);
 u8 get_product_rev(void);
 
-unsigned int d4400_get_eth_mode(void);
 #endif

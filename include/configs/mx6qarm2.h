@@ -69,27 +69,6 @@
 #define IMX_FEC_BASE			ENET_BASE_ADDR
 #define	CONFIG_FEC_XCV_TYPE		RGMII
 #define CONFIG_FEC_MXC_PHYADDR		0
-/*TSEC enable*/
-#if defined(CONFIG_TSEC_ENET)
-#ifndef CONFIG_NET_MULTI
-#define CONFIG_NET_MULTI
-
-#define CONFIG_MII                      /* MII PHY management */
-#define CONFIG_MII_DEFAULT_TSEC 1       /* Allow unregistered phys */
-
-#define TSEC1_FLAGS             (TSEC_GIGABIT | TSEC_REDUCED)
-#define CONFIG_TSEC1    1
-#define CONFIG_TSEC1_NAME       "eTSEC1"
-#define TSEC1_PHY_ADDR          1
-#define TSEC1_PHYIDX            0
-
-#define CONFIG_ETHPRIME         "eTSEC1"
-
-#define CONFIG_PHY_GIGE         /* Include GbE speed/duplex detection */
-
-#endif
-#endif  /* CONFIG_TSEC_ENET */
-/*TSEC enable END*/
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE

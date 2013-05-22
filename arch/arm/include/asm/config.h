@@ -1,5 +1,5 @@
 /*
- * Copyright 2009, 2013 Freescale Semiconductor, Inc.
+ * Copyright 2009 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,15 +20,6 @@
 
 #ifndef _ASM_CONFIG_H_
 #define _ASM_CONFIG_H_
-
-/* TSEC driver uses the PHYLIB infrastructure */
-#ifndef CONFIG_PHYLIB
-#if defined(CONFIG_TSEC_ENET)
-#define CONFIG_PHYLIB
-
-#include <config_phylib_all_drivers.h>
-#endif /* TSEC_ENET */
-#endif /* !CONFIG_PHYLIB */
 
 #define CONFIG_LMB
 #define CONFIG_SYS_BOOT_RAMDISK_HIGH

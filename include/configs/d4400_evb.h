@@ -40,40 +40,6 @@
 #define CONFIG_D4400_UART_PORT		4
 #define CONFIG_D4400_UART_BASE		UART4_BASE_ADDR
 
-/* TSEC enable */
-#define CONFIG_TSEC_ENET
-#if defined(CONFIG_TSEC_ENET)
-
-#define TSEC_DEBUG
-#define CONFIG_NET_MULTI
-
-#define CONFIG_MII                      /* MII PHY management */
-#define CONFIG_MII_DEFAULT_TSEC 1       /* Allow unregistered phys */
-
-#define TSEC1_FLAGS             (TSEC_GIGABIT | TSEC_REDUCED)
-#define CONFIG_TSEC1    1
-#define CONFIG_TSEC1_NAME       "eTSEC1"
-#define TSEC1_PHY_ADDR          0
-#define TSEC1_PHYIDX            0
-
-#define TSEC2_FLAGS             (TSEC_GIGABIT | TSEC_REDUCED)
-#define CONFIG_TSEC2    1
-#define CONFIG_TSEC2_NAME       "eTSEC2"
-#define TSEC2_PHY_ADDR          1
-#define TSEC2_PHYIDX            1
-
-#define CONFIG_ETHPRIME         "eTSEC1"
-
-#define CONFIG_PHY_GIGE         /* Include GbE speed/duplex detection */
-
-#define CONFIG_CMD_PING
-#define CONFIG_CMD_DHCP
-#define CONFIG_CMD_MII
-#define CONFIG_CMD_NET
-#define	CONFIG_MII
-
-#endif  /* CONFIG_TSEC_ENET */
-
 /* WEIM-NOR */
 #define CONFIG_CMD_WEIM_NOR
 
