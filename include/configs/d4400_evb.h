@@ -185,6 +185,4 @@
 
 #define CONFIG_SYS_DCACHE_OFF
 
-#define PALLADIUM_SETUP/* FIXME-Code for Palladium */
-
 #endif	/* __CONFIG_H */

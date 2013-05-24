@@ -145,18 +145,15 @@ static void weim_norflash_cs_setup(void)/* FIXME-Settings may change */
 	/* Collapsed mode */
 	writel(0x01800000, GCR_51_CONFIG_REG);
 	/* Memory WDOG enable, External interrupt polarity high */
-	writel(0x00000120, WEIM_CONFIGURATION_REG);
 	/* CS0 enable, Non Mux, Data port D[0-15], CRE signal Active low */
-	writel(0x00110001, WEIM_GENERAL_CONFIGURATION_REG_1);
+	writel(0x10110001, WEIM_GENERAL_CONFIGURATION_REG_1);
 	/* 2 Cycles of Address hold time  */
-	writel(0x00000002, WEIM_GENERAL_CONFIGURATION_REG_2);
-	/* Read wait 3 Cycles */
-	writel(0x03080000, WEIM_READ_CONFIGURATION_REG_1);
-	writel(0x00000000, WEIM_READ_CONFIGURATION_REG_2);
-	/* Write wait 3 Cycles, BE assert- 1 Cycle, BE negate - 1 Cycle
+	/* Read wait 12 Cycles */
+	writel(0x0c082000, WEIM_READ_CONFIGURATION_REG_1);
+	/* Write wait  0 Cycles, BE assert- 1 Cycle, BE negate - 1 Cycle
 	 * WE assert -1 Cycle, WE negate - 1 Cycle
 	 */
-	writel(0x030c9249, WEIM_WRITE_CONFIGURATION_REG_1);
+	writel(0x0d092400, WEIM_WRITE_CONFIGURATION_REG_1);
 }
 #endif
 
