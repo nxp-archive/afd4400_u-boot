@@ -136,10 +136,7 @@ ulong get_timer_masked(void)
 
 ulong get_timer(ulong base)
 {
-	if (!base)
-		return get_timer_masked();
-	else
-		return base - get_timer_masked();
+    return get_timer_masked() - base;
 }
 
 /* delay x useconds AND preserve advance timstamp value */
