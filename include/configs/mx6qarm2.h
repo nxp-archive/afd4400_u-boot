@@ -28,6 +28,7 @@
 
 #include "mx6_common.h"
 
+#define CONFIG_MEDUSA_BOARD
 #define CONFIG_DISPLAY_CPUINFO
 #define CONFIG_DISPLAY_BOARDINFO
 #include <asm/arch/imx-regs.h>
