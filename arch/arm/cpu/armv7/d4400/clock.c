@@ -804,21 +804,21 @@ int do_d4400_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 	printf("I2C11    %8d kHz\n",
 			d4400_get_clock(D4400_I2C11_CLK, 10) / 1000);
 	printf("ECSPI1   %8d kHz\n",
-			d4400_get_clock(D4400_ECSPI1_CLK, 0) / 1000);
+			d4400_get_clock(D4400_ECSPI1_CLK, ECSPI_1) / 1000);
 	printf("ECSPI2   %8d kHz\n",
-			d4400_get_clock(D4400_ECSPI2_CLK, 0) / 1000);
+			d4400_get_clock(D4400_ECSPI2_CLK, ECSPI_2) / 1000);
 	printf("ECSPI3   %8d kHz\n",
-			d4400_get_clock(D4400_ECSPI3_CLK, 0) / 1000);
+			d4400_get_clock(D4400_ECSPI3_CLK, ECSPI_3) / 1000);
 	printf("ECSPI4   %8d kHz\n",
-			d4400_get_clock(D4400_ECSPI4_CLK, 0) / 1000);
+			d4400_get_clock(D4400_ECSPI4_CLK, ECSPI_4) / 1000);
 	printf("ECSPI5   %8d kHz\n",
-			d4400_get_clock(D4400_ECSPI5_CLK, 0) / 1000);
+			d4400_get_clock(D4400_ECSPI5_CLK, ECSPI_5) / 1000);
 	printf("ECSPI6   %8d kHz\n",
-			d4400_get_clock(D4400_ECSPI6_CLK, 0) / 1000);
+			d4400_get_clock(D4400_ECSPI6_CLK, ECSPI_6) / 1000);
 	printf("ECSPI7   %8d kHz\n",
-			d4400_get_clock(D4400_ECSPI7_CLK, 0) / 1000);
+			d4400_get_clock(D4400_ECSPI7_CLK, ECSPI_7) / 1000);
 	printf("ECSPI8   %8d kHz\n",
-			d4400_get_clock(D4400_ECSPI8_CLK, 0) / 1000);
+			d4400_get_clock(D4400_ECSPI8_CLK, ECSPI_8) / 1000);
 	printf("TBGEN DEV   %8d kHz\n",
 			d4400_get_clock(D4400_TBGEN_DEV_CLK, 0) / 1000);
 	printf("TBGEN   %8d kHz\n",
