@@ -752,13 +752,13 @@ int do_d4400_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 	printf("IPG      %8d kHz\n",
 			d4400_get_clock(D4400_IPG_CLK, 0) / 1000);
 	printf("UART1    %8d kHz\n",
-			d4400_get_clock(D4400_UART1_CLK, 0) / 1000);
+			d4400_get_clock(D4400_UART1_CLK, UART_1) / 1000);
 	printf("UART2    %8d kHz\n",
-			d4400_get_clock(D4400_UART2_CLK, 1) / 1000);
+			d4400_get_clock(D4400_UART2_CLK, UART_2) / 1000);
 	printf("UART3    %8d kHz\n",
-			d4400_get_clock(D4400_UART3_CLK, 2) / 1000);
+			d4400_get_clock(D4400_UART3_CLK, UART_3) / 1000);
 	printf("UART4    %8d kHz\n",
-			d4400_get_clock(D4400_UART4_CLK, 3) / 1000);
+			d4400_get_clock(D4400_UART4_CLK, UART_4) / 1000);
 	printf("AXI      %8d kHz\n",
 			d4400_get_clock(D4400_AXI_CLK, 0) / 1000);
 	printf("DDR      %8d kHz\n",
