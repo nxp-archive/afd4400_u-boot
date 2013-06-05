@@ -37,4 +37,38 @@ struct gpio_regs {
 #endif
 
 #define D4400_GPIO_NR(port, index)		((((port)-1)*32)+((index)&31))
+
+/* used by gpio command for user friendly GPIO naming */
+static inline int name_to_gpio(const char *name)
+{
+	int base = -1;
+	int offset;
+	/* equivalent to tolower() for ASCII A-Z */
+	char gpio_set = *name | 0x20;
+
+	/* Check for an initial letter for the GPIO bank */
+	if (gpio_set >= 'a' && gpio_set <= 'z') {
+		base = (gpio_set - 'a') * 32;
+		++name;
+	}
+
+	/* After the bank letter it must be a decimal number */
+	gpio_set = *name;
+	if (gpio_set < '0' || gpio_set > '9')
+		return -1;
+
+	/* Get the numeric pin number */
+	offset = simple_strtoul(name, NULL, 10);
+
+	/* If a GPIO bank was used then the number must be less than 32 */
+	if (base < 0)
+		return offset; /* only a GPIO number was specified */
+	else if (offset < 32)
+		return base + offset; /* a GPIO bank and number was given */
+	else
+		return -1; /* the offset is too high */
+}
+
+#define name_to_gpio(n) name_to_gpio(n)
+
 #endif
