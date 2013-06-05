@@ -4,6 +4,8 @@
  * (c) 2007 Pengutronix, Sascha Hauer <s.hauer@pengutronix.de>
  * (c) 2011 Marek Vasut <marek.vasut@gmail.com>
  *
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
  * Based on i2c-imx.c from linux kernel:
  *  Copyright (C) 2005 Torsten Koschorrek <koschorrek at synertronixx.de>
  *  Copyright (C) 2005 Matthias Blaschke <blaschke at synertronixx.de>
@@ -61,6 +63,10 @@ struct mxc_i2c_regs {
 
 #if defined(CONFIG_HARD_I2C) && !defined(CONFIG_SYS_I2C_BASE)
 #error "define CONFIG_SYS_I2C_BASE to use the mxc_i2c driver"
+#endif
+
+#ifndef CONFIG_SYS_MAX_I2C_BUS
+#define CONFIG_SYS_MAX_I2C_BUS (3)
 #endif
 
 static u16 i2c_clk_div[50][2] = {
@@ -369,7 +375,7 @@ struct i2c_parms {
 
 struct sram_data {
 	unsigned curr_i2c_bus;
-	struct i2c_parms i2c_data[3];
+	struct i2c_parms i2c_data[CONFIG_SYS_MAX_I2C_BUS];
 };
 
 /*
@@ -469,8 +475,11 @@ void bus_i2c_init(void *base, int speed, int unused,
 		}
 		p++;
 		i++;
-		if (i >= ARRAY_SIZE(srdata.i2c_data))
+		if (i >= ARRAY_SIZE(srdata.i2c_data)) {
+			printf("%s: failed - i2c_data structure is full\n",
+				__func__);
 			return;
+		}
 	}
 	bus_i2c_set_bus_speed(base, speed);
 }
