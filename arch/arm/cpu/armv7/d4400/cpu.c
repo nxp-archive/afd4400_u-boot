@@ -54,6 +54,7 @@ int print_cpuinfo(void)
 		prev, srev,
 		d4400_get_clock(D4400_ARM_CLK, 0) / 1000000);
 	printf("Reset cause: 0x%08x\n", get_reset_cause());
+
 	return 0;
 }
 #endif

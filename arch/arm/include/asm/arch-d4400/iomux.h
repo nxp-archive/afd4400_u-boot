@@ -67,7 +67,7 @@ typedef u64 iomux_cfg_t;
 #define DDR_PAD_CTRL_SHIFT	46
 #define DDR_PAD_CTRL_MASK	((iomux_cfg_t)1 << DDR_PAD_CTRL_SHIFT)
 
-#define NO_PAD_CTRL             45
+#define NO_PAD_CTRL             (1 << 14)
 
 #define IOMUX_PAD(pad_ctrl_ofs, mux_ctrl_ofs, mux_mode, \
 		 pad_ctrl, ddr_pad)					\

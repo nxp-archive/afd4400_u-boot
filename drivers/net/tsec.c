@@ -52,6 +52,8 @@ static RTXBD rtx __attribute__ ((aligned(8)));
 #error "rtx must be 64-bit aligned"
 #endif
 
+static int tsec_send(struct eth_device *dev, void *packet, int length);
+
 /* Default initializations for TSEC controllers. */
 
 static struct tsec_info_struct tsec_info[] = {
@@ -360,6 +362,7 @@ static void startup_tsec(struct eth_device *dev)
 #ifdef CONFIG_SYS_FSL_ERRATUM_NMG_ETSEC129
 	uint svr;
 #endif
+
 #ifdef CONFIG_MEDUSA_FPGA
 	rtx = (RTXBD volatile *)OCRAM_TSEC_BD_STRCT;
 #endif
@@ -412,16 +415,15 @@ static void startup_tsec(struct eth_device *dev)
 		rtx.txbd[i].bufPtr = 0;
 #endif
 	}
+#ifndef CONFIG_MEDUSA_FPGA
+	rtx.txbd[TX_BUF_CNT - 1].status |= TXBD_WRAP;
+#endif
 
 #ifdef CONFIG_SYS_FSL_ERRATUM_NMG_ETSEC129
 	svr = get_svr();
 	if ((SVR_MAJ(svr) == 1) || IS_SVR_REV(svr, 2, 0))
 		redundant_init(dev);
 #endif
-#ifndef CONFIG_MEDUSA_FPGA
-	rtx.txbd[TX_BUF_CNT - 1].status |= TXBD_WRAP;
-#endif
-
 	/* Enable Transmit and Receive */
 	setbits_32(&regs->maccfg1, MACCFG1_RX_EN | MACCFG1_TX_EN);
 
@@ -472,7 +474,7 @@ static int tsec_send(struct eth_device *dev, void *packet, int length)
 	rtx.txbd[txIdx].bufPtr = (uint) packet;
 	rtx.txbd[txIdx].length = length;
 	rtx.txbd[txIdx].status |=
-		(TXBD_READY | TXBD_LAST | TXBD_CRC | TXBD_INTERRUPT);
+	    (TXBD_READY | TXBD_LAST | TXBD_CRC | TXBD_INTERRUPT);
 #endif
 
 	/* Tell the DMA to go */
@@ -496,6 +498,7 @@ static int tsec_send(struct eth_device *dev, void *packet, int length)
 #else
 	result = rtx.txbd[txIdx].status & TXBD_STATS;
 #endif
+
 	return result;
 }
 
@@ -504,6 +507,7 @@ static int tsec_recv(struct eth_device *dev)
 	int length;
 	struct tsec_private *priv = (struct tsec_private *)dev->priv;
 	tsec_t *regs = priv->regs;
+
 #ifdef CONFIG_MEDUSA_FPGA
 	while (!(readl(&rtx->rxbd[rxIdx]) & RXBD_EMPTY)) {
 #else
@@ -528,23 +532,24 @@ static int tsec_recv(struct eth_device *dev)
 
 		rxIdx = (rxIdx + 1) % PKTBUFSRX;
 #else
+
 		length = rtx.rxbd[rxIdx].length;
+
 		/* Send the packet up if there were no errors */
 		if (!(rtx.rxbd[rxIdx].status & RXBD_STATS)) {
 			NetReceive(NetRxPackets[rxIdx], length - 4);
 		} else {
 			printf("Got error %x\n",
-					(rtx.rxbd[rxIdx].status & RXBD_STATS));
+			       (rtx.rxbd[rxIdx].status & RXBD_STATS));
 		}
 
-	       rtx.rxbd[rxIdx].length = 0;
+		rtx.rxbd[rxIdx].length = 0;
 
-	       /* Set the wrap bit if this is the last element in the list */
-	       rtx.rxbd[rxIdx].status =
-		       RXBD_EMPTY |
-		       (((rxIdx + 1) == PKTBUFSRX) ? RXBD_WRAP : 0);
+		/* Set the wrap bit if this is the last element in the list */
+		rtx.rxbd[rxIdx].status =
+		    RXBD_EMPTY | (((rxIdx + 1) == PKTBUFSRX) ? RXBD_WRAP : 0);
 
-	       rxIdx = (rxIdx + 1) % PKTBUFSRX;
+		rxIdx = (rxIdx + 1) % PKTBUFSRX;
 #endif
 	}
 
@@ -554,6 +559,7 @@ static int tsec_recv(struct eth_device *dev)
 	}
 
 	return -1;
+
 }
 
 /* Stop the interface */
@@ -584,9 +590,11 @@ static int tsec_init(struct eth_device *dev, bd_t * bd)
 {
 	uint tempval;
 	char tmpbuf[MAC_ADDR_LEN];
-	int i, ret = 0;
+	int i;
 	struct tsec_private *priv = (struct tsec_private *)dev->priv;
 	tsec_t *regs = priv->regs;
+	int ret;
+
 	/* Make sure the controller is stopped */
 	tsec_halt(dev);
 
@@ -606,25 +614,25 @@ static int tsec_init(struct eth_device *dev, bd_t * bd)
 
 	writel(tempval, &regs->macstnaddr1);
 
-	tempval = 0;
 	tempval = (tmpbuf[4] << 24) | (tmpbuf[5] << 16);
 
 	writel(tempval, &regs->macstnaddr2);
-
-	/* Start up the PHY */
-	ret = phy_startup(priv->phydev);
-	if (ret) {
-		printf("Could not initialize PHY %s\n",
-				priv->phydev->dev->name);
-		return ret;
-	}
-	adjust_link(priv, priv->phydev);
 
 	/* Clear out (for the most part) the other registers */
 	init_registers(regs);
 
 	/* Ready the device for tx/rx */
 	startup_tsec(dev);
+
+	/* Start up the PHY */
+	ret = phy_startup(priv->phydev);
+	if (ret) {
+		printf("Could not initialize PHY %s\n",
+		       priv->phydev->dev->name);
+		return ret;
+	}
+
+	adjust_link(priv, priv->phydev);
 
 	/* If there's no link, fail */
 	return priv->phydev->link ? 0 : -1;
@@ -686,6 +694,7 @@ static int init_phy(struct eth_device *dev)
 			SUPPORTED_10baseT_Full |
 			SUPPORTED_100baseT_Half |
 			SUPPORTED_100baseT_Full);
+
 	if (priv->flags & TSEC_GIGABIT)
 		supported |= SUPPORTED_1000baseT_Full;
 
@@ -802,7 +811,7 @@ int tsec_standard_init(bd_t *bis)
 {
 	struct fsl_pq_mdio_info info;
 
-	info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO1_BASE_ADDR;
+	info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO_BASE_ADDR;
 	info.name = DEFAULT_MII_NAME;
 
 	fsl_pq_mdio_init(bis, &info);

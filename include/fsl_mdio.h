@@ -32,7 +32,12 @@
 /* MII Management Configuration Register */
 #define MIIMCFG_RESET_MGMT          0x80000000
 #define MIIMCFG_MGMT_CLOCK_SELECT   0x00000007
+/* @todo Determine appropriate clock tree so that this can remain 0x00000003 */
+#ifdef CONFIG_D4400
+#define MIIMCFG_INIT_VALUE	    0x00000007
+#else
 #define MIIMCFG_INIT_VALUE	    0x00000003
+#endif
 
 /* MII Management Command Register */
 #define MIIMCOM_READ_CYCLE	0x00000001

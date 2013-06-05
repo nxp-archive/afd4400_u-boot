@@ -25,6 +25,7 @@
 #include <asm/io.h>
 #include <asm/arch/d4400-regs.h>
 #include <asm/arch/d4400-pins.h>
+#include <asm/arch/ccm_regs.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/errno.h>
 #include <asm/gpio.h>
@@ -45,6 +46,18 @@ DECLARE_GLOBAL_DATA_PTR;
 #define ENET_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |		\
 	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED   |		\
 	PAD_CTL_DSL_1   | PAD_CTL_HYS)
+
+#if 0
+#define MDIO_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |		\
+	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED   |		\
+	PAD_CTL_DSL_2   | PAD_CTL_HYS | PAD_CTL_ODE)
+#else
+#define MDIO_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |		\
+	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED   |		\
+	PAD_CTL_DSL_2   | PAD_CTL_HYS)
+#endif
+
+
 
 int dram_init(void)
 {
@@ -184,8 +197,11 @@ iomux_cfg_t enet_pads[] = {
 	D4400_PAD_GPIO_D06_TSEC1_RX_CLK | MUX_PAD_CTRL(ENET_PAD_CTRL),
 	D4400_PAD_GPIO_D07_TSEC1_RX_DV | MUX_PAD_CTRL(ENET_PAD_CTRL),
 	D4400_PAD_GPIO_D08_TSEC1_RXD_0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	D4400_PAD_TSEC_MDC_GPIO_D09 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	D4400_PAD_TSEC_MDIO_GPIO_D10 | MUX_PAD_CTRL(ENET_PAD_CTRL),
+};
+
+iomux_cfg_t mdio_pads[] = {
+	D4400_PAD_TSEC_MDC_GPIO_D09 | MUX_PAD_CTRL(MDIO_PAD_CTRL),
+	D4400_PAD_TSEC_MDIO_GPIO_D10 | MUX_PAD_CTRL(MDIO_PAD_CTRL),
 };
 
 static void setup_iomux_enet(void)
@@ -193,7 +209,12 @@ static void setup_iomux_enet(void)
 	d4400_iomux_setup_multiple_pads(enet_pads, ARRAY_SIZE(enet_pads));
 }
 
-static void setup_serdes_sgmii_mode(void)
+void setup_iomux_mdio(void)
+{
+	d4400_iomux_setup_multiple_pads(mdio_pads, ARRAY_SIZE(mdio_pads));
+}
+
+void setup_serdes_sgmii_mode(void)
 {
 	struct serdes_regs *serdes_regs =
 		(struct serdes_regs *)(SERDES2_BASE_ADDR);
@@ -217,15 +238,31 @@ static void setup_serdes_sgmii_mode(void)
 
 }
 
-static void setup_enet(void)
+void setup_enet(void)
 {
+
+	struct d4400_ccm_reg *ccm_regs =
+		(struct d4400_ccm_reg *) CCM_BASE_ADDR;
+
+	setup_iomux_mdio();
+
+	/* Configure clock divider for 25MHz to 125MHz conversion */
+	unsigned int ccdr2 = ccm_regs->ccdr2;
+	ccdr2 &= ~D4400_CCM_CCDR2_SGMI_CLK_MASK;
+	ccdr2 |= (0x4 << D4400_CCM_CCDR2_SGMI_CLK_OFFSET);
+	ccm_regs->ccdr2 = ccdr2;
+
 	/* Checking BOOT MODE */
 	/* If BOOT mode is SGMII setup SERDES */
-	if (BOOT_ETH_MODE_SGMII == d4400_get_eth0_mode())
+
+//	if (BOOT_ETH_MODE_SGMII == d4400_get_eth0_mode())
+	if (d4400_get_tsec_flags() & TSEC_SGMII) {
 		setup_serdes_sgmii_mode();
-	/* If BOOT mode is RGMII setup IOMUX */
-	else
+	}
+	/* If BOOT mode is RMII/RGMII setup IOMUX */
+	else {
 		setup_iomux_enet();
+	}
 }
 
 int board_eth_init(bd_t *bis)
@@ -235,27 +272,41 @@ int board_eth_init(bd_t *bis)
 
 	int num = 0;
 
+	int flags = d4400_get_tsec_flags();
+
 #ifdef CONFIG_TSEC1
 	SET_STD_TSEC_INFO(tsec_info[num], 1);
+	tsec_info[num].flags = flags;
+	if (flags & TSEC_SGMII)
+		printf("SGMII: ");
+	else if (flags & TSEC_GIGABIT) {
+		tsec_info[num].phyaddr = TSEC1_PHY_ADDR_RGMII;
+		printf("RGMII: ");
+	}
+	else if (flags & TSEC_REDUCED) {
+		tsec_info[num].phyaddr = TSEC1_PHY_ADDR_RMII;
+		printf("RMII: ");
+	}
+	else
+		printf("MII: ");
 	num++;
 #endif
 
 #ifdef CONFIG_TSEC2
-	SET_STD_TSEC_INFO(tsec_info[num], 2);
-	num++;
+	if (flags & TSEC_SGMII) {
+		SET_STD_TSEC_INFO(tsec_info[num], 2);
+		tsec_info[num].flags = flags;
+		num++;
+	}
 #endif
 
-	if (!num) {
-		printf("No TSECs initialized\n");
-		return 0;
-	}
-
-	mdio_info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO1_BASE_ADDR;
+	mdio_info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO_BASE_ADDR;
 	mdio_info.name = DEFAULT_MII_NAME;
 
 	fsl_pq_mdio_init(bis, &mdio_info);
 	if (num != tsec_eth_init(bis, tsec_info, num))
 		printf("TSEC : Unable to register initialize TSEC\n");
+
 
 	return 0;
 }

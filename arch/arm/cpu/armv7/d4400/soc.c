@@ -27,6 +27,7 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/fsl_serdes.h>
+#include <tsec.h>
 
 u8 get_silicon_rev(void)
 {
@@ -120,6 +121,34 @@ void enable_caches(void)
 #endif
 
 #if defined(CONFIG_TSEC_ENET)
+
+unsigned int d4400_get_eth0_mode()
+{
+
+	struct src *src_p = (struct src *)(SRC_BASE_ADDR);
+
+	return (src_p->sbmr & SRC_SBMR_ETH_MODE_MASK) >>
+			SRC_SBMR_ETH_MODE_SHIFT;
+}
+
+unsigned int d4400_get_tsec_flags(void)
+{
+	tsec_t *regs = (tsec_t*)TSEC_BASE_ADDR;
+	u32 ecntrl;
+	int flags = 0;
+
+	ecntrl = readl(&regs->ecntrl);
+
+	if (ecntrl & ECNTRL_SGMII_MODE)
+		flags = TSEC_SGMII | TSEC_GIGABIT | TSEC_REDUCED;
+	else if (ecntrl & ECNTRL_REDUCED_MODE)
+		flags = TSEC_GIGABIT | TSEC_REDUCED;
+	else if (ecntrl & ECNTRL_REDUCED_MII_MODE)
+		flags = TSEC_REDUCED;
+
+	return flags;
+}
+
 void d4400_get_mac_eth0_from_fuse(int dev_id, unsigned char *mac)
 {
 	struct iim_fuse_t *iim_f = (struct iim_fuse_t *)(IIM_BASE_ADDR +
@@ -131,14 +160,6 @@ void d4400_get_mac_eth0_from_fuse(int dev_id, unsigned char *mac)
 	mac[3] = (unsigned char)readl(&iim_f->macaddr3);
 	mac[4] = (unsigned char)readl(&iim_f->macaddr4);
 	mac[5] = (unsigned char)readl(&iim_f->macaddr5);
-}
-
-unsigned int d4400_get_eth0_mode()
-{
-	struct src *src_p = (struct src *)(SRC_BASE_ADDR);
-
-	return (src_p->sbmr & SRC_SBMR_ETH_MODE_MASK) >>
-			SRC_SBMR_ETH_MODE_SHIFT;
 }
 
 unsigned int d4400_get_phy_addr_eth0_from_fuse()

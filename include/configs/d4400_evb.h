@@ -50,18 +50,25 @@
 #define CONFIG_MII                      /* MII PHY management */
 #define CONFIG_MII_DEFAULT_TSEC 1       /* Allow unregistered phys */
 
-#define TSEC1_FLAGS             (TSEC_GIGABIT | TSEC_REDUCED)
-#define CONFIG_TSEC1    1
+#define TSEC_BASE_ADDR		VETSEC0_GROUP0_BASE_ADDR
+#define MDIO_BASE_ADDR		VETSEC0_MDIO_BASE_ADDR
+#define TSEC_MDIO_OFFSET	0x20000
+
+#define TSEC1_FLAGS             (TSEC_SGMII | TSEC_GIGABIT | TSEC_REDUCED)
+#define CONFIG_TSEC1    	1
 #define CONFIG_TSEC1_NAME       "eTSEC1"
-#define TSEC1_PHY_ADDR          0
+#define TSEC1_PHY_ADDR		0
+#define TSEC1_PHY_ADDR_RGMII    1
+#define TSEC1_PHY_ADDR_RMII     3
 #define TSEC1_PHYIDX            0
 
-#define TSEC2_FLAGS             (TSEC_GIGABIT | TSEC_REDUCED)
-#define CONFIG_TSEC2    1
+#define TSEC2_FLAGS             (TSEC_SGMII | TSEC_GIGABIT | TSEC_REDUCED)
+#define CONFIG_TSEC2    	1
 #define CONFIG_TSEC2_NAME       "eTSEC2"
-#define TSEC2_PHY_ADDR          1
+#define TSEC2_PHY_ADDR          2
 #define TSEC2_PHYIDX            1
 
+#define CONFIG_SYS_TBIPA_VALUE  0x10
 #define CONFIG_ETHPRIME         "eTSEC1"
 
 #define CONFIG_PHY_GIGE         /* Include GbE speed/duplex detection */
@@ -87,10 +94,15 @@
 
 #undef CONFIG_CMD_IMLS
 
-#define CONFIG_BOOTDELAY		3
+#define CONFIG_BOOTDELAY		5
 
 #define CONFIG_LOADADDR			0x90800000
 #define CONFIG_SYS_TEXT_BASE		0x90002000
+
+#define CONFIG_IPADDR   10.232.21.210
+#define CONFIG_ETHADDR	10:20:30:40:50:60
+#define CONFIG_GATEWAYIP 10.232.135.254
+#define CONFIG_NETMASK   255.0.0.0
 
 #define CONFIG_EXTRA_ENV_SETTINGS\
 	"uimage=uImage\0"\
@@ -107,8 +119,13 @@
 		"cp.b 0x32CC0000 $fdtaddr 0x20000;" \
 		"bootm $loadaddr - $fdtaddr \0"
 
+
+
+#if 1 /* Configure for automatic NOR Flash boot */
 #define CONFIG_BOOTCOMMAND \
 	"run bootcmd_nor;"
+#endif
+
 
 #define CONFIG_ARP_TIMEOUT	200UL
 
@@ -121,7 +138,7 @@
 
 /* Print Buffer Size */
 #define CONFIG_SYS_PBSIZE (CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
-#define CONFIG_SYS_MAXARGS		16
+#define CONFIG_SYS_MAXARGS		64
 #define CONFIG_SYS_BARGSIZE CONFIG_SYS_CBSIZE
 
 #define CONFIG_SYS_MEMTEST_START	MMDC_BASE_ADDR

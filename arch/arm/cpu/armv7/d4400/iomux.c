@@ -38,11 +38,11 @@ int d4400_iomux_setup_pad(iomux_cfg_t pad)
 		if (mux_ctrl_ofs)
 			__raw_writeb(mux_mode, base + mux_ctrl_ofs);
 
-		if (!(pad_ctrl & NO_PAD_CTRL) && pad_ctrl_ofs)
-			__raw_writel(pad_ctrl, base + pad_ctrl_ofs);
+		if ((!(pad_ctrl & NO_PAD_CTRL)) && pad_ctrl_ofs)
+			__raw_writew(pad_ctrl, base + pad_ctrl_ofs);
 	} else {
 		if (pad_ctrl_ofs)
-			__raw_writel(pad_ctrl, base_ddr + pad_ctrl_ofs);
+			__raw_writew(pad_ctrl, base_ddr + pad_ctrl_ofs);
 	}
 
 	return 0;
