@@ -47,8 +47,8 @@ endif
 else
 ALL-y	+= $(obj)u-boot.imx
 endif
+endif
 
 ifneq ($(CONFIG_D4400_CONFIG),)
 ALL-y	+= $(obj)u-boot.d4400
-endif
 endif
