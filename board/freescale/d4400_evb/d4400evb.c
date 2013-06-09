@@ -177,6 +177,15 @@ static void setup_weim_nor(void)
 }
 #endif
 
+#ifdef CONFIG_QIXIS
+static void setup_weim_qixis(void)
+{
+	writel(0x000400C1, WEIM_CS2_GENERAL_CONFIGURATION_REG_1);
+	writel(0x3F007000, WEIM_CS2_READ_CONFIGURATION_REG_1);
+	writel(0x0f000000, WEIM_CS2_WRITE_CONFIGURATION_REG_1);
+}
+#endif
+
 #ifdef CONFIG_TSEC_ENET
 iomux_cfg_t enet_pads[] = {
 	/* PIN settings for RGMII TSEC1 */
@@ -327,6 +336,9 @@ int board_early_init_f(void)
 #endif
 #ifdef CONFIG_CMD_WEIM_NOR
 	setup_weim_nor();
+#ifdef CONFIG_QIXIS
+	setup_weim_qixis();
+#endif
 #endif
 #ifdef CONFIG_MXC_SPI
 	setup_iomux_spi();
@@ -336,6 +348,14 @@ int board_early_init_f(void)
 
 int board_init(void)
 {
+#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
+	printf("QIXIS: %02x:%02x - %02x.%02x\n",
+		readb(CONFIG_QIXIS_BASE_ADDR + 0),
+		readb(CONFIG_QIXIS_BASE_ADDR + 1),
+		readb(CONFIG_QIXIS_BASE_ADDR + 2),
+		readb(CONFIG_QIXIS_BASE_ADDR + 3));
+#endif
+
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 

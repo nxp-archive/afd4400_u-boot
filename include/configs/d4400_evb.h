@@ -84,6 +84,8 @@
 
 /* WEIM-NOR */
 #define CONFIG_CMD_WEIM_NOR
+#define CONFIG_QIXIS
+#define CONFIG_QIXIS_BASE_ADDR		(WEIM_BASE_ADDR + 0x10000000)
 
 /* Allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
@@ -182,6 +184,7 @@
 	//#define CONFIG_SYS_MAX_FLASH_SECT	2048
 	#define CONFIG_SYS_MAX_FLASH_SECT	1024
 	#define CONFIG_SYS_FLASH_PROTECTION
+	#define CONFIG_SYS_FLASH_EMPTY_INFO
 #endif /* CONFIG_CMD_WEIM_NOR */
 
 /* FLASH and environment organization */
