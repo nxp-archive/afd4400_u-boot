@@ -32,10 +32,6 @@
 #include <mmc.h>
 #include <fsl_esdhc.h>
 #include <miiphy.h>
-#if defined CONFIG_TSEC_ENET && defined CONFIG_MEDUSA_FPGA
-#include <tsec.h>
-#include <fsl_mdio.h>
-#endif
 #include <netdev.h>
 #include <asm/arch/clock.h>
 
@@ -336,39 +332,6 @@ int fecmxc_mii_postcall(int phy)
 
 	return 0;
 }
-#if defined CONFIG_TSEC_ENET && defined CONFIG_MEDUSA_FPGA
-int board_eth_init(bd_t *bis)
-{
-	struct fsl_pq_mdio_info mdio_info;
-	struct tsec_info_struct tsec_info[2];
-
-	int num = 0;
-
-#ifdef CONFIG_TSEC1
-	SET_STD_TSEC_INFO(tsec_info[num], 1);
-	num++;
-#endif
-
-#ifdef CONFIG_TSEC2
-	SET_STD_TSEC_INFO(tsec_info[num], 2);
-	num++;
-#endif
-
-	if (!num) {
-		printf("No TSECs initialized\n");
-		return 0;
-	}
-
-	mdio_info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO1_BASE_ADDR;
-	mdio_info.name = DEFAULT_MII_NAME;
-
-	fsl_pq_mdio_init(bis, &mdio_info);
-	if (num != tsec_eth_init(bis, tsec_info, num))
-		printf("TSEC : Unable to register initialize TSEC\n");
-
-	return 0;
-}
-#else
 int board_eth_init(bd_t *bis)
 {
 	struct eth_device *dev;

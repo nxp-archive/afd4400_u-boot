@@ -41,13 +41,7 @@ static int num_tsecs = 0;
 
 
 #ifdef __GNUC__
-#ifdef CONFIG_MEDUSA_FPGA
-#define OCRAM_TSEC_BD_DATA 0x0d100080
-#define OCRAM_TSEC_BD_STRCT 0x0d100000
-RTXBD *rtx;
-#else
 static RTXBD rtx __attribute__ ((aligned(8)));
-#endif
 #else
 #error "rtx must be 64-bit aligned"
 #endif
@@ -95,25 +89,6 @@ static struct tsec_info_struct tsec_info[] = {
 		| TBICR_SPEED1_SET \
 		)
 #endif /* CONFIG_TSEC_TBICR_SETTINGS */
-#ifdef CONFIG_MEDUSA_FPGA
-/* mem copy to ocram: ensuring 32BIT access always */
-void *memcpy_ocram(void *dst, void *src, unsigned int size)
-{
-	int *temp_dst = dst;
-	int *temp_src = src;
-
-	if (0 == (size%4))
-		size = size/4;
-	else
-		size = (size + 4)/4;
-
-	while (size--)
-		*temp_dst++ = *temp_src++;
-	return dst;
-}
-static uchar *TxPktBuf = (uchar *)OCRAM_TSEC_BD_DATA;
-static uchar *RxPktBuf[PKTBUFSRX];
-#endif
 
 /* Configure the TBI for SGMII operation */
 static void tsec_configure_serdes(struct tsec_private *priv)
@@ -363,61 +338,25 @@ static void startup_tsec(struct eth_device *dev)
 	uint svr;
 #endif
 
-#ifdef CONFIG_MEDUSA_FPGA
-	rtx = (RTXBD volatile *)OCRAM_TSEC_BD_STRCT;
-#endif
 	/* Point to the buffer descriptors */
-#ifdef CONFIG_MEDUSA_FPGA
-	writel(((unsigned int)(&rtx->txbd[txIdx]) - OCRAM_OFFSET),
-			&regs->tbase);
-	writel(((unsigned int)(&rtx->rxbd[rxIdx]) - OCRAM_OFFSET),
-			&regs->rbase);
-	mem_sync();
-#else
 	writel((unsigned int)(&rtx.txbd[txIdx]), &regs->tbase);
 	writel((unsigned int)(&rtx.rxbd[rxIdx]), &regs->rbase);
-#endif
 
 	/* Initialize the Rx Buffer descriptors */
 	for (i = 0; i < PKTBUFSRX; i++) {
-#ifdef CONFIG_MEDUSA_FPGA
-		RxPktBuf[i] = TxPktBuf + ((i + 1) * PKTSIZE_ALIGN);
-		if (i == PKTBUFSRX - 1)
-			writel(((RXBD_WRAP|RXBD_EMPTY) | 0), &rtx->rxbd[i]);
-		else
-			writel((((RXBD_EMPTY)) | 0), &rtx->rxbd[i]);
-
-		writel(((uint) RxPktBuf[i] - OCRAM_OFFSET),
-				&rtx->rxbd[i].bufPtr);
-		mem_sync();
-#else
 		rtx.rxbd[i].status = RXBD_EMPTY;
 		rtx.rxbd[i].length = 0;
 		rtx.rxbd[i].bufPtr = (uint) NetRxPackets[i];
-#endif
 	}
-#ifndef CONFIG_MEDUSA_FPGA
 	rtx.rxbd[PKTBUFSRX - 1].status |= RXBD_WRAP;
-#endif
 
 	/* Initialize the TX Buffer Descriptors */
 	for (i = 0; i < TX_BUF_CNT; i++) {
-#ifdef CONFIG_MEDUSA_FPGA
-		if (i == TX_BUF_CNT - 1)
-			writel((TXBD_WRAP | 0x00000000), &rtx->txbd[i]);
-		else
-			writel((0 | 0x00000000), &rtx->txbd[i]);
-		rtx->txbd[i].bufPtr = 0;
-		mem_sync();
-#else
 		rtx.txbd[i].status = 0;
 		rtx.txbd[i].length = 0;
 		rtx.txbd[i].bufPtr = 0;
-#endif
 	}
-#ifndef CONFIG_MEDUSA_FPGA
 	rtx.txbd[TX_BUF_CNT - 1].status |= TXBD_WRAP;
-#endif
 
 #ifdef CONFIG_SYS_FSL_ERRATUM_NMG_ETSEC129
 	svr = get_svr();
@@ -447,45 +386,22 @@ static int tsec_send(struct eth_device *dev, void *packet, int length)
 	tsec_t *regs = priv->regs;
 
 	/* Find an empty buffer descriptor */
-#ifdef CONFIG_MEDUSA_FPGA
-	for (i = 0; (readl(&rtx->txbd[txIdx])>>16)
-			& TXBD_READY; i++) {
-#else
 	for (i = 0; rtx.txbd[txIdx].status & TXBD_READY; i++) {
-#endif
 		if (i >= TOUT_LOOP) {
 			debug("%s: tsec: tx buffers full\n", dev->name);
 			return result;
 		}
 	}
-#ifdef CONFIG_MEDUSA_FPGA
-	memcpy_ocram(TxPktBuf, packet, length);
-	writel(((uint) TxPktBuf - OCRAM_OFFSET), &rtx->txbd[txIdx].bufPtr);
-
-	if ((TX_BUF_CNT - 1) == txIdx)
-		writel(((length & 0xffff) << 16) | (TXBD_READY | TXBD_WRAP |
-					TXBD_LAST | TXBD_INTERRUPT),
-				&rtx->txbd[txIdx]);
-	else
-		writel(((length & 0xffff) << 16) | (TXBD_READY | TXBD_LAST |
-					TXBD_INTERRUPT),
-				&rtx->txbd[txIdx]);
-#else
 	rtx.txbd[txIdx].bufPtr = (uint) packet;
 	rtx.txbd[txIdx].length = length;
 	rtx.txbd[txIdx].status |=
 	    (TXBD_READY | TXBD_LAST | TXBD_CRC | TXBD_INTERRUPT);
-#endif
 
 	/* Tell the DMA to go */
 	writel(TSTAT_CLEAR_THALT, &regs->tstat);
 
 	/* Wait for buffer to be transmitted */
-#ifdef CONFIG_MEDUSA_FPGA
-	for (i = 0; (readl(&rtx->txbd[txIdx])) & TXBD_READY; i++) {
-#else
 	for (i = 0; rtx.txbd[txIdx].status & TXBD_READY; i++) {
-#endif
 		if (i >= TOUT_LOOP) {
 			debug("%s: tsec: tx error\n", dev->name);
 			return result;
@@ -493,11 +409,7 @@ static int tsec_send(struct eth_device *dev, void *packet, int length)
 	}
 
 	txIdx = (txIdx + 1) % TX_BUF_CNT;
-#ifdef CONFIG_MEDUSA_FPGA
-	result = readl(&rtx->txbd[txIdx]) & TXBD_STATS;
-#else
 	result = rtx.txbd[txIdx].status & TXBD_STATS;
-#endif
 
 	return result;
 }
@@ -508,30 +420,7 @@ static int tsec_recv(struct eth_device *dev)
 	struct tsec_private *priv = (struct tsec_private *)dev->priv;
 	tsec_t *regs = priv->regs;
 
-#ifdef CONFIG_MEDUSA_FPGA
-	while (!(readl(&rtx->rxbd[rxIdx]) & RXBD_EMPTY)) {
-#else
 	while (!(rtx.rxbd[rxIdx].status & RXBD_EMPTY)) {
-#endif
-#ifdef CONFIG_MEDUSA_FPGA
-		length = (readl(&rtx->rxbd[rxIdx]) >> 16);
-
-		/* Send the packet up if there were no errors */
-		if (!(readl(&rtx->rxbd[rxIdx]) & RXBD_STATS)) {
-			memcpy_ocram(NetRxPackets[rxIdx], RxPktBuf[rxIdx],
-					length - 4);
-			NetReceive(NetRxPackets[rxIdx], length - 4);
-		} else {
-			printf("%d:Got error %x\n",
-				rxIdx, (readl(&rtx->rxbd[rxIdx])));
-		}
-		writel(0x0, &rtx->rxbd[rxIdx]);
-		writel((RXBD_EMPTY | (((rxIdx + 1) == PKTBUFSRX)
-						? RXBD_WRAP : 0)),
-				&rtx->rxbd[rxIdx]);
-
-		rxIdx = (rxIdx + 1) % PKTBUFSRX;
-#else
 
 		length = rtx.rxbd[rxIdx].length;
 
@@ -550,7 +439,6 @@ static int tsec_recv(struct eth_device *dev)
 		    RXBD_EMPTY | (((rxIdx + 1) == PKTBUFSRX) ? RXBD_WRAP : 0);
 
 		rxIdx = (rxIdx + 1) % PKTBUFSRX;
-#endif
 	}
 
 	if (readl(&regs->ievent) & IEVENT_BSY) {
@@ -728,9 +616,6 @@ static int tsec_initialize(bd_t *bis, struct tsec_info_struct *tsec_info)
 	struct eth_device *dev;
 	int i;
 	struct tsec_private *priv;
-#ifdef CONFIG_MEDUSA_FPGA
-	int mask = 0;
-#endif
 
 	dev = (struct eth_device *)malloc(sizeof *dev);
 
@@ -770,15 +655,6 @@ static int tsec_initialize(bd_t *bis, struct tsec_info_struct *tsec_info)
 
 	eth_register(dev);
 
-	/* Adding code for FPGA delay and Clock Bug */
-#ifdef CONFIG_MEDUSA_FPGA
-	printf("\nWaiting for FPGA INIT ");
-	mask = readl(&priv->regs->res000[0]);
-	while (TSEC_DEV_ID != mask)
-		mask = readl(&priv->regs->res000[0]);
-	printf("0x%x\n", readl(&priv->regs->res000[0]));
-#endif
-	/* END Adding code for FPGA delay and Clock Bug */
 	/* Reset the MAC */
 	setbits_32(&priv->regs->maccfg1, MACCFG1_SOFT_RESET);
 	udelay(2);  /* Soft Reset must be asserted for 3 TX clocks */

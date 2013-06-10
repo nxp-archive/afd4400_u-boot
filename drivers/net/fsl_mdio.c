@@ -79,16 +79,6 @@ int tsec_local_mdio_read(struct tsec_mii_mng *phyregs, int port_addr,
 static int fsl_pq_mdio_reset(struct mii_dev *bus)
 {
 	struct tsec_mii_mng *regs = bus->priv;
-#ifdef CONFIG_MEDUSA_FPGA
-	int mask = 0;
-
-	/*Code for FPGA delay*/
-	printf("Waiting for FPGA INIT ");
-	mask = readl(&regs->miimcfg);
-	while (0x00000007 != mask)
-		mask = readl(&regs->miimcfg);
-	printf("0x%x\n", readl(&regs->miimcfg));
-#endif
 	/* Reset MII (due to new addresses) */
 	writel(MIIMCFG_RESET_MGMT, &regs->miimcfg);
 
