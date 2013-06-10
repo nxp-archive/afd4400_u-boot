@@ -47,6 +47,7 @@
 /u-boot.dtb
 /u-boot.sb
 /u-boot.geany
+/u-boot.d4400
 
 #
 # Generated files
@@ -58,6 +59,7 @@
 /reloc_off
 
 /include/generated/
+/include/u-boot.lst
 asm-offsets.s
 
 # stgit generated dirs

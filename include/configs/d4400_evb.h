@@ -42,6 +42,7 @@
 
 /* TSEC enable */
 #define CONFIG_TSEC_ENET
+#define CONFIG_D4400_EVB_MDC_BUG_SW_FIX
 #if defined(CONFIG_TSEC_ENET)
 
 #define TSEC_DEBUG
@@ -103,8 +104,8 @@
 /* Network settings */
 #define CONFIG_IPADDR   192.168.0.1
 #define CONFIG_IP1ADDR  192.168.0.2
-#define CONFIG_ETH1ADDR	10:20:30:40:50:60
-#define CONFIG_ETH1ADDR	10:20:30:40:50:61
+#define CONFIG_ETHADDR	02:20:30:40:50:60
+#define CONFIG_ETH1ADDR	02:20:30:40:50:61
 #define CONFIG_NETMASK  255.255.0.0
 
 #define CONFIG_EXTRA_ENV_SETTINGS\
@@ -124,10 +125,8 @@
 
 
 
-#if 1 /* Configure for automatic NOR Flash boot */
 #define CONFIG_BOOTCOMMAND \
 	"run bootcmd_nor;"
-#endif
 
 
 #define CONFIG_ARP_TIMEOUT	200UL
