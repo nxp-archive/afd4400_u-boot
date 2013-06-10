@@ -204,4 +204,10 @@
 #define CONFIG_CMD_BOOTZ
 
 #define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
+
+/* Hide 256 MB of RAM from u-boot to be used
+ * memory allocator used for VSPA and other
+ * RF devices */
+#define CONFIG_SYS_MEM_TOP_HIDE 0x10000000
+
 #endif	/* __CONFIG_H */
