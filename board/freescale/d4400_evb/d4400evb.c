@@ -23,8 +23,8 @@
 
 #include <common.h>
 #include <asm/io.h>
-#include <asm/arch/d4400-regs.h>
-#include <asm/arch/d4400-pins.h>
+#include <asm/arch/imx-regs.h>
+#include <asm/arch/d4400_pins.h>
 #include <asm/arch/ccm_regs.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/errno.h>
@@ -68,8 +68,8 @@ int dram_init(void)
 
 #ifdef CONFIG_D4400_UART
 iomux_cfg_t uart4_pads[] = {
-	D4400_PAD_UART4_TXD | MUX_PAD_CTRL(UART_PAD_CTRL),
-	D4400_PAD_UART4_RXD | MUX_PAD_CTRL(UART_PAD_CTRL),
+	D4400_PAD_UART4_TXD_UART4_TXD | MUX_PAD_CTRL(UART_PAD_CTRL),
+	D4400_PAD_UART4_RXD_UART4_RXD | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
 static void setup_iomux_uart(void)
@@ -159,14 +159,14 @@ static void weim_norflash_cs_setup(void)/* FIXME-Settings may change */
 	writel(0x01800000, GCR_51_CONFIG_REG);
 	/* Memory WDOG enable, External interrupt polarity high */
 	/* CS0 enable, Non Mux, Data port D[0-15], CRE signal Active low */
-	writel(0x10110001, WEIM_GENERAL_CONFIGURATION_REG_1);
+	writel(0x10110001, WEIM_CS0_GENERAL_CONFIGURATION_REG_1);
 	/* 2 Cycles of Address hold time  */
 	/* Read wait 12 Cycles */
-	writel(0x0c082000, WEIM_READ_CONFIGURATION_REG_1);
+	writel(0x0c082000, WEIM_CS0_READ_CONFIGURATION_REG_1);
 	/* Write wait  0 Cycles, BE assert- 1 Cycle, BE negate - 1 Cycle
 	 * WE assert -1 Cycle, WE negate - 1 Cycle
 	 */
-	writel(0x0d092400, WEIM_WRITE_CONFIGURATION_REG_1);
+	writel(0x0d092400, WEIM_CS0_WRITE_CONFIGURATION_REG_1);
 }
 #endif
 
@@ -209,12 +209,12 @@ static void setup_iomux_enet(void)
 	d4400_iomux_setup_multiple_pads(enet_pads, ARRAY_SIZE(enet_pads));
 }
 
-void setup_iomux_mdio(void)
+static void setup_iomux_mdio(void)
 {
 	d4400_iomux_setup_multiple_pads(mdio_pads, ARRAY_SIZE(mdio_pads));
 }
 
-void setup_serdes_sgmii_mode(void)
+static void setup_serdes_sgmii_mode(void)
 {
 	struct serdes_regs *serdes_regs =
 		(struct serdes_regs *)(SERDES2_BASE_ADDR);
@@ -238,7 +238,7 @@ void setup_serdes_sgmii_mode(void)
 
 }
 
-void setup_enet(void)
+static void setup_enet(void)
 {
 
 	struct d4400_ccm_reg *ccm_regs =
@@ -248,8 +248,8 @@ void setup_enet(void)
 
 	/* Configure clock divider for 25MHz to 125MHz conversion */
 	unsigned int ccdr2 = ccm_regs->ccdr2;
-	ccdr2 &= ~D4400_CCM_CCDR2_SGMI_CLK_MASK;
-	ccdr2 |= (0x4 << D4400_CCM_CCDR2_SGMI_CLK_OFFSET);
+	ccdr2 &= ~D4400_CCM_CCDR2_SGMII_PHY_CLK_MASK;
+	ccdr2 |= (0x4 << D4400_CCM_CCDR2_SGMII_PHY_CLK_OFFSET);
 	ccm_regs->ccdr2 = ccdr2;
 
 	/* Checking BOOT MODE */
@@ -300,6 +300,11 @@ int board_eth_init(bd_t *bis)
 	}
 #endif
 
+	if (!num) {
+		printf("No TSECs initialized\n");
+		return 0;
+	}
+
 	mdio_info.regs = (struct tsec_mii_mng *)CONFIG_SYS_MDIO_BASE_ADDR;
 	mdio_info.name = DEFAULT_MII_NAME;
 
@@ -323,6 +328,9 @@ int board_early_init_f(void)
 #ifdef CONFIG_CMD_WEIM_NOR
 	setup_weim_nor();
 #endif
+#ifdef CONFIG_MXC_SPI
+	setup_iomux_spi();
+#endif
 	return 0;
 }
 
@@ -330,6 +338,10 @@ int board_init(void)
 {
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
+
+#ifdef CONFIG_I2C_MXC
+	setup_i2c_busses();
+#endif
 	return 0;
 }
 

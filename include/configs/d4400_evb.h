@@ -25,7 +25,7 @@
 #define CONFIG_D4400
 #define CONFIG_DISPLAY_CPUINFO
 #define CONFIG_DISPLAY_BOARDINFO
-#include <asm/arch/d4400-regs.h>
+#include <asm/arch/imx-regs.h>
 
 #define CONFIG_CMDLINE_TAG
 #define CONFIG_SETUP_MEMORY_TAGS
@@ -70,7 +70,6 @@
 #define TSEC2_PHY_ADDR          2
 #define TSEC2_PHYIDX            1
 
-#define CONFIG_SYS_TBIPA_VALUE  0x10
 #define CONFIG_ETHPRIME         "eTSEC1"
 
 #define CONFIG_PHY_GIGE         /* Include GbE speed/duplex detection */
@@ -102,8 +101,9 @@
 #define CONFIG_SYS_TEXT_BASE		0x90002000
 
 /* Network settings */
-#define CONFIG_IPADDR   192.168.0.1
-#define CONFIG_IP1ADDR  192.168.0.2
+#define CONFIG_IPADDR   10.232.21.210
+#define CONFIG_IP1ADDR   10.232.21.211
+#define CONFIG_GATEWAYIP 10.232.135.254
 #define CONFIG_ETHADDR	02:20:30:40:50:60
 #define CONFIG_ETH1ADDR	02:20:30:40:50:61
 #define CONFIG_NETMASK  255.255.0.0

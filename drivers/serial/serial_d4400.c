@@ -19,7 +19,7 @@
 
 #include <common.h>
 #include <watchdog.h>
-#include <asm/arch/d4400-regs.h>
+#include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
 #include <serial.h>
 #include <linux/compiler.h>

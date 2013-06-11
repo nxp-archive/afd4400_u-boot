@@ -26,7 +26,7 @@
  * MA 02111-1307 USA
  */
 #include <common.h>
-#include <asm/arch/d4400-regs.h>
+#include <asm/arch/imx-regs.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <errno.h>

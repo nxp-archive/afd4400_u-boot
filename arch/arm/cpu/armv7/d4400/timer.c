@@ -23,7 +23,7 @@
 #include <common.h>
 #include <asm/io.h>
 #include <div64.h>
-#include <asm/arch/d4400-regs.h>
+#include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
 
 /* Enhanced periodic interrupt timers registers */

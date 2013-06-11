@@ -23,7 +23,7 @@
 #include <common.h>
 #include <asm/errno.h>
 #include <asm/io.h>
-#include <asm/arch/d4400-regs.h>
+#include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/fsl_serdes.h>
@@ -122,7 +122,7 @@ void enable_caches(void)
 
 #if defined(CONFIG_TSEC_ENET)
 
-unsigned int d4400_get_eth0_mode()
+unsigned int d4400_get_eth0_mode(void)
 {
 
 	struct src *src_p = (struct src *)(SRC_BASE_ADDR);
@@ -162,7 +162,7 @@ void d4400_get_mac_eth0_from_fuse(int dev_id, unsigned char *mac)
 	mac[5] = (unsigned char)readl(&iim_f->macaddr5);
 }
 
-unsigned int d4400_get_phy_addr_eth0_from_fuse()
+unsigned int d4400_get_phy_addr_eth0_from_fuse(void)
 {
 	struct iim_fuse_t *iim_f = (struct iim_fuse_t *)(IIM_BASE_ADDR +
 			IIM_FUSE_BITS_OFFSET);

@@ -24,7 +24,7 @@
 #include <common.h>
 #include <asm/errno.h>
 #include <asm/io.h>
-#include <asm/arch/d4400-regs.h>
+#include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/ccm_regs.h>
@@ -52,8 +52,15 @@ int print_cpuinfo(void)
 	printf("CPU:Freescale D4400 prev-0x%x, srev-0x%x"
 		"at %d MHz\n",
 		prev, srev,
-		d4400_get_clock(D4400_ARM_CLK, 0) / 1000000);
-	printf("Reset cause: 0x%08x\n", get_reset_cause());
+		d4400_get_clock(MXC_ARM_CLK, 0) / 1000000);
+	printf("Reset cause: 0x%08x\n",
+			get_reset_cause());
+	printf("DDR Clock:  %dMHz\n",
+			d4400_get_clock(MXC_DDR_CLK, 0) / 1000000);
+	printf("ARM Clock:  %dMHz\n",
+			d4400_get_clock(MXC_ARM_CLK, 0) / 1000000);
+	printf("VSPA Clock: %dMHz\n",
+			d4400_get_clock(MXC_VSPA_CLK, 0) / 1000000);
 
 	return 0;
 }
