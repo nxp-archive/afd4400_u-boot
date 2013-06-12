@@ -36,6 +36,8 @@
 #include <tsec.h>
 #include <fsl_mdio.h>
 #include <asm/arch/fsl_serdes.h>
+#include <asm/arch/i2c.h>
+#include <i2c.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -57,7 +59,9 @@ DECLARE_GLOBAL_DATA_PTR;
 	PAD_CTL_DSL_2   | PAD_CTL_HYS)
 #endif
 
-
+#define I2C_PAD_CTRL    (PAD_CTL_PKE | PAD_CTL_PUE |		\
+	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |		\
+	PAD_CTL_DSL_1 | PAD_CTL_HYS | PAD_CTL_ODE)
 
 int dram_init(void)
 {
@@ -323,6 +327,248 @@ int board_eth_init(bd_t *bis)
 
 
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_MXC_SPI
+
+#define SPI_PAD_CTRL    (PAD_CTL_HYS | PAD_CTL_PKE | PAD_CTL_PUE | \
+	PAD_CTL_PUS_100K_UP | PAD_CTL_DSL_3)
+
+iomux_cfg_t spi_pads[] = {
+	/* RoC1 */
+	D4400_PAD_SPI1_MOSI_eCSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI1_MISO_eCSPI1_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI1_CLK_eCSPI1_CLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI1_SS0_eCSPI1_SS0 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI1_SS1_eCSPI1_SS1 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOC0_eCSPI1_SS2 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	/* RoC2 */
+	D4400_PAD_SPI3_MOSI_eCSPI3_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI3_MISO_eCSPI3_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI3_CLK_eCSPI3_CLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI3_SS0_eCSPI3_SS0 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI3_SS1_eCSPI3_SS1 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOC4_eCSPI3_SS2 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	/* PA1 */
+	D4400_PAD_SPI5_MOSI_eCSPI5_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI5_MISO_eCSPI5_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI5_CLK_eCSPI5_CLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI5_SS0_eCSPI5_SS0 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI5_SS1_eCSPI5_SS1 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOA28_eCSPI5_SS2 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOA29_eCSPI5_SS3 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	/* PA2 */
+	D4400_PAD_SPI6_MOSI_eCSPI6_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI6_MISO_eCSPI6_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI6_CLK_eCSPI6_CLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI6_SS0_eCSPI6_SS0 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI6_SS1_eCSPI6_SS1 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOA26_eCSPI6_SS2 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOA27_eCSPI6_SS3 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	/* PA3 */
+	D4400_PAD_SPI7_MOSI_eCSPI7_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI7_MISO_eCSPI7_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI7_CLK_eCSPI7_CLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI7_SS0_eCSPI7_SS0 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI7_SS1_eCSPI7_SS1 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOA3_eCSPI7_SS2 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOA25_eCSPI7_SS3 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	/* PA4 */
+	D4400_PAD_SPI8_MOSI_eCSPI8_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI8_MISO_eCSPI8_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI8_CLK_eCSPI8_CLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI8_SS0_eCSPI8_SS0 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI8_SS1_eCSPI8_SS1 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOA2_eCSPI8_SS2 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_GPIOA24_eCSPI8_SS3 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+};
+
+static void setup_iomux_spi(void)
+{
+	d4400_iomux_setup_multiple_pads(spi_pads, ARRAY_SIZE(spi_pads));
+}
+#endif
+
+#ifdef CONFIG_I2C_MXC
+
+#define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
+
+/* I2C1 */
+struct i2c_pads_info i2c_pad_info0 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C1_SCL_I2C1_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C1_SCL_GPIOE1 | PC,
+		.gp = D4400_GPIO_NR(5, 1)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C1_SDA_I2C1_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C1_SDA_GPIOE0 | PC,
+		.gp = D4400_GPIO_NR(5, 0)
+	}
+};
+
+/* I2C2 */
+struct i2c_pads_info i2c_pad_info1 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C2_SCL_I2C2_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C2_SCL_GPIOE3 | PC,
+		.gp = D4400_GPIO_NR(5, 3)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C2_SDA_I2C2_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C2_SDA_GPIOE2 | PC,
+		.gp = D4400_GPIO_NR(5, 2)
+	}
+};
+
+/* I2C3 */
+struct i2c_pads_info i2c_pad_info2 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C3_SCL_I2C3_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C3_SCL_GPIOE5 | PC,
+		.gp = D4400_GPIO_NR(5, 5)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C3_SDA_I2C3_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C3_SDA_GPIOE4 | PC,
+		.gp = D4400_GPIO_NR(5, 4)
+	}
+};
+
+/* I2C5 */
+struct i2c_pads_info i2c_pad_info4 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C5_SCL_I2C5_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C5_SCL_GPIOD9 | PC,
+		.gp = D4400_GPIO_NR(4, 9)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C5_SDA_I2C5_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C5_SDA_GPIOE31 | PC,
+		.gp = D4400_GPIO_NR(5, 31)
+	}
+};
+
+/* I2C6 */
+struct i2c_pads_info i2c_pad_info5 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C6_SCL_I2C6_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C6_SCL_GPIOD11 | PC,
+		.gp = D4400_GPIO_NR(4, 11)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C6_SDA_I2C6_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C6_SDA_GPIOD10 | PC,
+		.gp = D4400_GPIO_NR(4, 10)
+	}
+};
+
+/* I2C7 */
+struct i2c_pads_info i2c_pad_info6 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C7_SCL_I2C7_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C7_SCL_GPIOD13 | PC,
+		.gp = D4400_GPIO_NR(4, 13)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C7_SDA_I2C7_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C7_SDA_GPIOD12 | PC,
+		.gp = D4400_GPIO_NR(4, 12)
+	}
+};
+
+/* I2C8 */
+struct i2c_pads_info i2c_pad_info7 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C8_SCL_I2C8_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C8_SCL_GPIOD15 | PC,
+		.gp = D4400_GPIO_NR(4, 15)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C8_SDA_I2C8_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C8_SDA_GPIOD14 | PC,
+		.gp = D4400_GPIO_NR(4, 14)
+	}
+};
+
+/* I2C9 */
+struct i2c_pads_info i2c_pad_info8 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C9_SCL_I2C9_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C9_SCL_GPIOD17 | PC,
+		.gp = D4400_GPIO_NR(4, 17)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C9_SDA_I2C9_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C9_SDA_GPIOD16 | PC,
+		.gp = D4400_GPIO_NR(4, 16)
+	}
+};
+
+/* I2C10 */
+struct i2c_pads_info i2c_pad_info9 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C10_SCL_I2C10_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C10_SCL_GPIOD19 | PC,
+		.gp = D4400_GPIO_NR(4, 19)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C10_SDA_I2C10_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C10_SDA_GPIOD18 | PC,
+		.gp = D4400_GPIO_NR(4, 18)
+	}
+};
+
+/* I2C11 */
+struct i2c_pads_info i2c_pad_info10 = {
+	.scl = {
+		.i2c_mode = D4400_PAD_I2C11_SCL_I2C11_SCL | PC,
+		.gpio_mode = D4400_PAD_I2C11_SCL_GPIOD21 | PC,
+		.gp = D4400_GPIO_NR(4, 21)
+	},
+	.sda = {
+		.i2c_mode = D4400_PAD_I2C11_SDA_I2C11_SDA | PC,
+		.gpio_mode = D4400_PAD_I2C11_SDA_GPIOD20 | PC,
+		.gp = D4400_GPIO_NR(4, 20)
+	}
+};
+
+struct d4400_i2c_bus {
+	char *name;
+	struct i2c_pads_info *info;
+};
+
+static struct d4400_i2c_bus d4400_i2c_busses[] = {
+	{ "I2C1",  &i2c_pad_info0 },
+	{ "I2C2",  &i2c_pad_info1 },
+	{ "I2C3",  &i2c_pad_info2 },
+	{ "I2C4",  NULL },
+	{ "I2C5",  &i2c_pad_info4 },
+	{ "I2C6",  &i2c_pad_info5 },
+	{ "I2C7",  &i2c_pad_info6 },
+	{ "I2C8",  &i2c_pad_info7 },
+	{ "I2C9",  &i2c_pad_info8 },
+	{ "I2C10",  &i2c_pad_info9 },
+	{ "I2C11",  &i2c_pad_info10 },
+};
+
+static void setup_i2c_busses(void)
+{
+	int i;
+#ifdef CONFIG_DISPLAY_I2C_BUSSES
+	int bus = 0;
+#endif
+	for (i = 0; i < ARRAY_SIZE(d4400_i2c_busses); i++) {
+		if (d4400_i2c_busses[i].info) {
+#ifdef CONFIG_DISPLAY_I2C_BUSSES
+			printf("%s: i2c dev %d\n",
+				d4400_i2c_busses[i].name, bus++);
+#endif
+			setup_i2c(i, CONFIG_SYS_I2C_SPEED, 0x7f,
+				d4400_i2c_busses[i].info);
+		}
+	}
 }
 #endif
 

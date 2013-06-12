@@ -25,7 +25,7 @@ include $(TOPDIR)/config.mk
 LIB     = $(obj)lib$(SOC).o
 
 ifeq ($(SOC),$(filter $(SOC),d4400))
-COBJS-y	= iomux.o timer.o cpu.o soc.o clock.o
+COBJS-y	= iomux.o timer.o cpu.o soc.o clock.o i2c.o
 endif
 COBJS	:= $(sort $(COBJS-y))
 SOBJS   = lowlevel_init.o

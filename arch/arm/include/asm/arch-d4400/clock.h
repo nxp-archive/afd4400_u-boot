@@ -113,4 +113,9 @@ u32 d4400_get_uart_clk(u32 port);
 u32 d4400_get_i2c_clk(u32 port);
 u32 d4400_get_ecspi_clk(u32 port);
 u32 d4400_get_sync_ckil(void);
+
+unsigned int mxc_get_clock(enum mxc_clock clk);
+unsigned int mxc_get_clock_bus(enum mxc_clock clk, int bus);
+int enable_i2c_clk(unsigned char enable, unsigned i2c_num);
+
 #endif /* __ASM_ARCH_D4400_CLOCK_H */

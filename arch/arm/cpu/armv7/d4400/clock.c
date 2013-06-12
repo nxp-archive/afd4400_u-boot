@@ -81,6 +81,30 @@ enum d4400_vspa_dp_sel {
 };
 struct d4400_ccm_reg *d4400_ccm = (struct d4400_ccm_reg *)CCM_BASE_ADDR;
 
+/* i2c_num can be from 0 - 10 */
+int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
+{
+#ifdef CONFIG_D4400_HW_DBG
+	u32 reg;
+	u32 mask;
+#endif
+	if (i2c_num > 10)
+		return -EINVAL;
+
+#if CONFIG_D4400_HW_DBG
+	/* TODO - fixup to use LPCGR registers */
+	mask = MXC_CCM_CCGR_CG_MASK
+		<< (MXC_CCM_CCGR2_I2C1_SERIAL_OFFSET + (i2c_num << 1));
+	reg = __raw_readl(&imx_ccm->CCGR2);
+	if (enable)
+		reg |= mask;
+	else
+		reg &= ~mask;
+	__raw_writel(reg, &imx_ccm->CCGR2);
+#endif
+	return 0;
+}
+
 static u32 decode_pll(enum pll_clocks pll, u32 infreq)
 {
 	u32 mult;
@@ -807,6 +831,16 @@ unsigned int d4400_get_clock(enum mxc_clock clk, unsigned int port)
 		printf("Error: Invalid clk argument passed %d\n", clk);
 		return 0;
 	}
+}
+
+unsigned int mxc_get_clock(enum mxc_clock clk)
+{
+	return d4400_get_clock(clk, 0);
+}
+
+unsigned int mxc_get_clock_bus(enum mxc_clock clk, int bus)
+{
+	return d4400_get_clock(clk, bus+1);
 }
 
 /*

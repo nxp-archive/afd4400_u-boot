@@ -213,4 +213,17 @@
  * RF devices */
 #define CONFIG_SYS_MEM_TOP_HIDE 0x10000000
 
+/* I2C Configs */
+#define CONFIG_I2C_MXC
+#define CONFIG_I2C_MULTI_BUS
+#define CONFIG_SYS_I2C_SPEED	50000 /* for QIXIS */
+#define CONFIG_SYS_MAX_I2C_BUS  11
+
+/* SPI Configs */
+#define CONFIG_MXC_SPI
+#define CONFIG_HARD_SPI
+#define CONFIG_DEFAULT_SPI_BUS          0
+#define CONFIG_DEFAULT_SPI_MODE         (SPI_MODE_0)
+#define MXC_ECSPI_SEPARATE_CLKS
+
 #endif	/* __CONFIG_H */
