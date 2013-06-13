@@ -80,6 +80,47 @@ enum d4400_vspa_dp_sel {
 	VSPA_PLL_DDR_BYP_2_CLK,
 };
 struct d4400_ccm_reg *d4400_ccm = (struct d4400_ccm_reg *)CCM_BASE_ADDR;
+static u32 get_clk_source(u32 plltype)
+{
+    u32 src;
+    u32 gcr0_bits_19_20;
+    u32 gcr0_bits_21_22;
+    switch(plltype)
+    {
+        case PLL_SYS:
+            gcr0_bits_19_20 = ((*((volatile u32 *)(GCR_0_CONFIG_REG))) >> 19) & 0x3;
+            if(gcr0_bits_19_20 == 0x00)
+                src = D4400_DEV_CLK;
+            else if(gcr0_bits_19_20 == 0x11)
+                src = D4400_SGMII_CLK;
+            else
+                src = 0x00;
+	    break;
+
+        case PLL_DDR:
+            gcr0_bits_21_22 = ((*((volatile u32 *)(GCR_0_CONFIG_REG))) >> 21) & 0x3;
+            if(gcr0_bits_21_22 == 0x00)
+                src = D4400_DEV_CLK;
+            else if(gcr0_bits_21_22 == 0x11)
+                src = D4400_SGMII_CLK;
+            else
+                src = 0x00;
+            break;
+
+        case PLL_TBGEN:
+            src = D4400_DEV_CLK;
+            break;
+
+        case PLL_TBGEN_HALF:
+            src = D4400_DEV_CLK;
+            break;
+
+        default:
+            src = 0x00;
+            break;
+    }
+  return src;
+}
 
 /* i2c_num can be from 0 - 10 */
 int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
@@ -105,10 +146,11 @@ int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
 	return 0;
 }
 
-static u32 decode_pll(enum pll_clocks pll, u32 infreq)
+static u32 decode_pll(enum pll_clocks pll)
 {
 	u32 mult;
-
+	u32 src;
+	src= get_clk_source(pll);
 	switch (pll) {
 	case PLL_SYS:
 		mult = __raw_readl(&d4400_ccm->spllgsr);
@@ -129,7 +171,7 @@ static u32 decode_pll(enum pll_clocks pll, u32 infreq)
 		mult = __raw_readl(&d4400_ccm->tpllgsr);
 		mult &= D4400_CCM_TPLLGSR_CFG_MASK;
 		mult >>= D4400_CCM_TPLLGSR_CFG_OFFSET;
-		infreq /= PLL_TBGEN_DIV_BY_2;
+		src /= PLL_TBGEN_DIV_BY_2;
 		break;
 	default:
 		printf("Error: Decode Pll invalid argument- "
@@ -141,7 +183,7 @@ static u32 decode_pll(enum pll_clocks pll, u32 infreq)
 	if (mult == 0)
 		mult = 1;
 
-	return infreq * mult;
+	return src * mult;
 }
 
 static u32 get_ref_clk(void)
@@ -168,7 +210,7 @@ static u32 get_pllsys_or_ref_clk_freq(void)
 	sel >>= D4400_CCM_CCSR_SCS_OFFSET;
 
 	if (sel)
-		freq = decode_pll(PLL_SYS, D4400_DEV_CLK);
+		freq = decode_pll(PLL_SYS);
 	 else
 		freq = get_ref_clk();
 
@@ -346,7 +388,7 @@ static u32 get_weim_clk(void)
 	}
 
 	if (sel)
-		freq = decode_pll(PLL_SYS, D4400_DEV_CLK);
+		freq = decode_pll(PLL_SYS);
 	else
 		freq = get_ref_clk();
 
@@ -382,11 +424,11 @@ static u32 get_mmdc_clk(void)
 			return D4400_GPIO_DDR_CLK / (div + 1);
 
 	case MMDC_PLL_SYS_CLK:
-		return decode_pll(PLL_SYS, D4400_DEV_CLK) / (div + 1);
+		return decode_pll(PLL_SYS) / (div + 1);
 	case MMDC_PLL_DDR_CLK:
-		return decode_pll(PLL_DDR, D4400_SGMII_CLK) / (div + 1);
+		return decode_pll(PLL_DDR) / (div + 1);
 	case MMDC_PLL_DDR_BYP_2_CLK:
-		freq = decode_pll(PLL_DDR, D4400_SGMII_CLK);
+		freq = decode_pll(PLL_DDR);
 		freq >>= 1;
 		return freq  / (div + 1);
 	default:
@@ -634,11 +676,11 @@ static u32 get_vspa_dp_clk(void)
 	case VSPA_REF_SYS_BYP_CLK:
 		return get_sys_bus_clk() / (div + 1);
 	case VSPA_PLL_SYS_CLK:
-		return decode_pll(PLL_SYS, D4400_DEV_CLK) / (div + 1);
+		return decode_pll(PLL_SYS) / (div + 1);
 	case VSPA_PLL_DDR_CLK:
-		return decode_pll(PLL_DDR, D4400_DEV_CLK) / (div + 1);
+		return decode_pll(PLL_DDR) / (div + 1);
 	case VSPA_PLL_DDR_BYP_2_CLK:
-		return decode_pll(PLL_DDR, D4400_DEV_CLK) /
+		return decode_pll(PLL_DDR) /
 					(D4400_PLL_DDR_BY_2 * (div + 1));
 	}
 	return 0;
@@ -646,27 +688,27 @@ static u32 get_vspa_dp_clk(void)
 
 static u32 get_jesd204tx_clk(void)
 {
-	return decode_pll(PLL_TBGEN, D4400_DEV_CLK);
+	return decode_pll(PLL_TBGEN);
 }
 
 static u32 get_jesd204tx_cpri_clk(void)
 {
-	return decode_pll(PLL_TBGEN, D4400_DEV_CLK);
+	return decode_pll(PLL_TBGEN);
 }
 
 static u32 get_jesd204rx_clk(void)
 {
-	return decode_pll(PLL_TBGEN_HALF, D4400_DEV_CLK);
+	return decode_pll(PLL_TBGEN_HALF);
 }
 
 static u32 get_jesd204rx_cpri_clk(void)
 {
-	return decode_pll(PLL_TBGEN_HALF, D4400_DEV_CLK);
+	return decode_pll(PLL_TBGEN_HALF);
 }
 
 static u32 get_tbgen_clk(void)
 {
-	return decode_pll(PLL_TBGEN, D4400_DEV_CLK);
+	return decode_pll(PLL_TBGEN);
 }
 
 static u32 get_tbgen_dev_clk(void)
@@ -692,7 +734,7 @@ static u32 get_ccm_at_clk(void)
 		clk = get_mmdc_clk();
 		break;
 	case 1: /* gated_pll_sys_clk_tpiu */
-		clk = decode_pll(PLL_SYS, D4400_DEV_CLK);
+		clk = decode_pll(PLL_SYS);
 		break;
 	case 2: /* tbgen_pll_clk */
 		clk = get_tbgen_clk();
@@ -850,13 +892,13 @@ int do_d4400_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 		char * const argv[])
 {
 	u32 freq;
-	freq = decode_pll(PLL_SYS, D4400_DEV_CLK);
+	freq = decode_pll(PLL_SYS);
 	printf("PLL_SYS        %8d MHz\n", (freq + 500000) / 1000000);
-	freq = decode_pll(PLL_DDR, D4400_SGMII_CLK);
+	freq = decode_pll(PLL_DDR);
 	printf("PLL_DDR        %8d MHz\n", (freq + 500000) / 1000000);
-	freq = decode_pll(PLL_TBGEN, D4400_DEV_CLK);
+	freq = decode_pll(PLL_TBGEN);
 	printf("PLL_TBGEN      %8d MHz\n", (freq + 500000) / 1000000);
-	freq = decode_pll(PLL_TBGEN_HALF, D4400_DEV_CLK);
+	freq = decode_pll(PLL_TBGEN_HALF);
 	printf("PLL_TBGEN_HALF %8d MHz\n", (freq + 500000) / 1000000);
 
 	printf("\n");
