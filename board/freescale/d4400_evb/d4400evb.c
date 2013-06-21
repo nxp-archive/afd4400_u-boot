@@ -63,6 +63,20 @@ DECLARE_GLOBAL_DATA_PTR;
 	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |		\
 	PAD_CTL_DSL_1 | PAD_CTL_HYS | PAD_CTL_ODE)
 
+#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
+enum FPGA_GVDD_VSEL {
+	MANUAL_1_8_V_SEL,
+	MANUAL_2_5_V_SEL,
+	MANUAL_3_0_V_SEL,
+	MANUAL_3_3_V_SEL,
+};
+
+#define QIXIS_PWR_CTL2_REG_OFFSET 0x21
+#define QIXIS_GVDD_REG_MASK 0x3
+#define QIXIS_GVDDA_REG_OFFSET 0x0
+#define QIXIS_GVDDB_REG_OFFSET 0x2
+#define QIXIS_GVDDC_REG_OFFSET 0x4
+#endif
 int dram_init(void)
 {
 	gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
@@ -592,6 +606,92 @@ static void setup_i2c_busses(void)
 }
 #endif
 
+#ifdef CONFIG_OVDD_VSEL
+void setup_ovdd_vsel()
+{
+#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
+	u8 reg = readb(CONFIG_QIXIS_BASE_ADDR + QIXIS_PWR_CTL2_REG_OFFSET);
+
+	u8 val = reg;
+	val >>= QIXIS_GVDDA_REG_OFFSET;
+	val &= QIXIS_GVDD_REG_MASK;
+	switch (val) {
+	case MANUAL_1_8_V_SEL:
+		writel(0x00000007, GVDD1_VSEL_REG);
+		writel(0x00000007, GVDD8_VSEL_REG);
+		writel(0x00000007, GVDD9_VSEL_REG);
+		break;
+	case MANUAL_2_5_V_SEL:
+		writel(0x00000005, GVDD1_VSEL_REG);
+		writel(0x00000005, GVDD8_VSEL_REG);
+		writel(0x00000005, GVDD9_VSEL_REG);
+		break;
+	case MANUAL_3_0_V_SEL:
+	case MANUAL_3_3_V_SEL:
+		writel(0x00000004, GVDD1_VSEL_REG);
+		writel(0x00000004, GVDD8_VSEL_REG);
+		writel(0x00000004, GVDD9_VSEL_REG);
+		break;
+	default:
+		break;
+	}
+	val = reg;
+	val >>= QIXIS_GVDDB_REG_OFFSET;
+	val &= QIXIS_GVDD_REG_MASK;
+	switch (val) {
+	case MANUAL_1_8_V_SEL:
+		writel(0x00000007, GVDD2_VSEL_REG);
+		writel(0x00000007, GVDD4_VSEL_REG);
+		writel(0x00000007, GVDD7_VSEL_REG);
+		break;
+	case MANUAL_2_5_V_SEL:
+		writel(0x00000005, GVDD2_VSEL_REG);
+		writel(0x00000005, GVDD4_VSEL_REG);
+		writel(0x00000005, GVDD7_VSEL_REG);
+		break;
+	case MANUAL_3_0_V_SEL:
+	case MANUAL_3_3_V_SEL:
+		writel(0x00000004, GVDD2_VSEL_REG);
+		writel(0x00000004, GVDD4_VSEL_REG);
+		writel(0x00000004, GVDD7_VSEL_REG);
+		break;
+	default:
+		break;
+	}
+	val = reg;
+	val >>= QIXIS_GVDDC_REG_OFFSET;
+	val &= QIXIS_GVDD_REG_MASK;
+	switch (val) {
+	case MANUAL_1_8_V_SEL:
+		writel(0x00000007, GVDD3_VSEL_REG);
+		writel(0x00000007, GVDD6_VSEL_REG);
+		break;
+	case MANUAL_2_5_V_SEL:
+		writel(0x00000005, GVDD3_VSEL_REG);
+		writel(0x00000005, GVDD6_VSEL_REG);
+		break;
+	case MANUAL_3_0_V_SEL:
+	case MANUAL_3_3_V_SEL:
+		writel(0x00000004, GVDD3_VSEL_REG);
+		writel(0x00000004, GVDD6_VSEL_REG);
+		break;
+	default:
+		break;
+	}
+#endif
+
+/* CONFIG_JVDD_HW_SEL_DEFAULT - 1.8V */
+#ifdef CONFIG_JVDD_HW_SEL_DEFAULT
+	writel(0x00000007, FVDD_VSEL_REG);
+	writel(0x00000007, JVDD_VSEL_REG);
+#else
+	writel(0x00000004, FVDD_VSEL_REG);
+	writel(0x00000004, JVDD_VSEL_REG);
+#endif
+	writel(0x00000007, GVDD5_VSEL_REG);
+}
+#endif
+
 int board_early_init_f(void)
 {
 #ifdef CONFIG_D4400_UART
@@ -622,6 +722,9 @@ int board_init(void)
 		readb(CONFIG_QIXIS_BASE_ADDR + 3));
 #endif
 
+#ifdef CONFIG_OVDD_VSEL
+	setup_ovdd_vsel();
+#endif
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 

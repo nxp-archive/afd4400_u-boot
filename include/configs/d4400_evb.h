@@ -87,6 +87,9 @@
 #define CONFIG_QIXIS
 #define CONFIG_QIXIS_BASE_ADDR		(WEIM_BASE_ADDR + 0x10000000)
 
+/*VDD_VSEL Selection*/
+#define CONFIG_OVDD_VSEL
+
 /* Allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
 #define CONFIG_CONS_INDEX		1
