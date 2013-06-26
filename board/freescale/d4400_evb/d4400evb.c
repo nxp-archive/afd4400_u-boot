@@ -196,8 +196,14 @@ static void setup_weim_nor(void)
 #endif
 
 #ifdef CONFIG_QIXIS
+iomux_cfg_t qixis_pads[] = {
+	D4400_PAD_FLASH_CS2_B_EIM_CS2_B | MUX_PAD_CTRL(NO_PAD_CTRL)
+};
+
 static void setup_weim_qixis(void)
 {
+	d4400_iomux_setup_multiple_pads(qixis_pads, ARRAY_SIZE(qixis_pads));
+
 	writel(0x000400C1, WEIM_CS2_GENERAL_CONFIGURATION_REG_1);
 	writel(0x3F007000, WEIM_CS2_READ_CONFIGURATION_REG_1);
 	writel(0x0f000000, WEIM_CS2_WRITE_CONFIGURATION_REG_1);
