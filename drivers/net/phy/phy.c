@@ -17,7 +17,7 @@
  * MA 02111-1307 USA
  *
  *
- * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011-2013 Freescale Semiconductor, Inc.
  * author Andy Fleming
  *
  * Based loosely off of Linux's PHY Lib
