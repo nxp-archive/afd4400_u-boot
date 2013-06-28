@@ -19,10 +19,10 @@
 #define SERDES_PLL1_RST_ERR 0x20000000
 
 struct serdes_regs {
-	volatile unsigned int pll1_rstctl_offs; /* 0x0 */
+	unsigned int pll1_rstctl_offs; /* 0x0 */
 	/* u-boot does not use these registers marking as reserved */
-	volatile unsigned char reserved0[0x1c];
-	volatile unsigned int pll2_rstctl_offs; /* 0x20 */
+	unsigned char reserved0[0x1c];
+	unsigned int pll2_rstctl_offs; /* 0x20 */
 };
 
 #endif /* __FSL_SERDES_H */

@@ -96,11 +96,11 @@ static void tsec_configure_serdes(struct tsec_private *priv)
 	/* Access TBI PHY registers at given TSEC register offset as opposed
 	 * to the register offset used for external PHY accesses */
 	tsec_local_mdio_write(priv->phyregs_sgmii, readl(&priv->regs->tbipa),
-			0, TBI_ANA, TBIANA_SETTINGS);
+			      0, TBI_ANA, TBIANA_SETTINGS);
 	tsec_local_mdio_write(priv->phyregs_sgmii, readl(&priv->regs->tbipa),
-			0, TBI_TBICON, TBICON_CLK_SELECT);
+			      0, TBI_TBICON, TBICON_CLK_SELECT);
 	tsec_local_mdio_write(priv->phyregs_sgmii, readl(&priv->regs->tbipa),
-			0, TBI_CR, CONFIG_TSEC_TBICR_SETTINGS);
+			      0, TBI_CR, CONFIG_TSEC_TBICR_SETTINGS);
 }
 
 #ifdef CONFIG_MCAST_TFTP

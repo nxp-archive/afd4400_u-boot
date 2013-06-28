@@ -265,19 +265,23 @@ static void setup_serdes_sgmii_mode(void)
 {
 	struct serdes_regs *serdes_regs =
 		(struct serdes_regs *)(SERDES2_BASE_ADDR);
-	int mask;
+	int mask, pll1_rstctl_offs;
 	int timeout = 1000000;
 
 	/* Soft reset SERDES PLL1*/
-	serdes_regs->pll1_rstctl_offs &= ~(SERDES_PLL1_RST_REQ);
+	pll1_rstctl_offs = readl(&serdes_regs->pll1_rstctl_offs);
+	pll1_rstctl_offs &= ~(SERDES_PLL1_RST_REQ);
+	writel(pll1_rstctl_offs, &serdes_regs->pll1_rstctl_offs);
 
-	serdes_regs->pll1_rstctl_offs |= SERDES_PLL1_RST_REQ;
+	pll1_rstctl_offs = readl(&serdes_regs->pll1_rstctl_offs);
+	pll1_rstctl_offs |= SERDES_PLL1_RST_REQ;
+	writel(pll1_rstctl_offs, &serdes_regs->pll1_rstctl_offs);
 
 	/* RST_DONE should be 1, RST_ERR should be 0 */
-	mask = (serdes_regs->pll1_rstctl_offs &
+	mask = (readl(&(serdes_regs->pll1_rstctl_offs)) &
 			(SERDES_PLL1_RST_DONE | SERDES_PLL1_RST_ERR));
 	while (mask != SERDES_PLL1_RST_DONE && timeout--)
-		mask = (serdes_regs->pll1_rstctl_offs &
+		mask = (readl(&(serdes_regs->pll1_rstctl_offs)) &
 				(SERDES_PLL1_RST_DONE | SERDES_PLL1_RST_ERR));
 
 	if (0 == timeout)
