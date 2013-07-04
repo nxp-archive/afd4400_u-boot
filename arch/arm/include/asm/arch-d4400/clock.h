@@ -25,11 +25,7 @@
 
 #include <common.h>
 
-#ifdef PALLADIUM_SETUP
-#define D4400_DEV_CLK		125000000
-#else
 #define D4400_DEV_CLK		122880000
-#endif
 #define D4400_SGMII_CLK		125000000
 #define D4400_GPIO_DDR_CLK	2000000
 #define D4400_CORE_BYPASS_CLK	2000000

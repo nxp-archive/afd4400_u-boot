@@ -150,20 +150,6 @@ iomux_cfg_t nor_pads[] = {
 	D4400_PAD_FLASH_WE_B_EIM_WE_B | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
-#ifdef PALLADIUM_SETUP
-static void weim_norflash_cs_setup(void)
-{
-	/* Memory WDOG enable, External interrupt polarity high */
-	writel(0x00000120, WEIM_CONFIGURATION_REG);
-	/* CS0 enable, Non Mux, Data port D[0-15], CRE signal Active High */
-	writel(0x00010081, WEIM_GENERAL_CONFIGURATION_REG_1);
-	/* 2 Cycles of Address hold time  */
-	writel(0x00000002, WEIM_GENERAL_CONFIGURATION_REG_2);
-	writel(0x16020000, WEIM_READ_CONFIGURATION_REG_1);
-	writel(0x00000000, WEIM_READ_CONFIGURATION_REG_2);
-	writel(0x1c092480, WEIM_WRITE_CONFIGURATION_REG_1);
-}
-#else
 /*
  * WEIM Bus connect Nor Flash in Async mode
  * 16 bit port resides on DATA[15:0]: Non Mux mode
@@ -200,7 +186,6 @@ static void weim_norflash_cs_setup(void)/* FIXME-Settings may change */
 	 */
 	writel(0x0d009240, WEIM_CS1_WRITE_CONFIGURATION_REG_1);
 }
-#endif
 
 static void setup_weim_nor(void)
 {
