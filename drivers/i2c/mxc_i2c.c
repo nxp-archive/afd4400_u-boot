@@ -477,7 +477,7 @@ void bus_i2c_init(void *base, int speed, int unused,
 		i++;
 		if (i >= ARRAY_SIZE(srdata.i2c_data)) {
 			printf("%s: failed - i2c_data structure is full\n",
-				__func__);
+			       __func__);
 			return;
 		}
 	}

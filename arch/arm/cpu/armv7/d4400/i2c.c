@@ -49,7 +49,7 @@ static int force_idle_bus(void *priv)
 		goto exit;		/* Bus is idle already */
 
 	printf("%s: sda=%d scl=%d sda.gp=0x%x scl.gp=0x%x\n", __func__,
-		sda, scl, p->sda.gp, p->scl.gp);
+	       sda, scl, p->sda.gp, p->scl.gp);
 	/* Send high and low on the SCL line */
 	for (i = 0; i < 9; i++) {
 		gpio_direction_output(p->scl.gp, 0);
@@ -68,7 +68,7 @@ static int force_idle_bus(void *priv)
 		if (elapsed > (CONFIG_SYS_HZ / 5)) {	/* .2 seconds */
 			ret = -EBUSY;
 			printf("%s: failed to clear bus, sda=%d scl=%d\n",
-					__func__, sda, scl);
+			       __func__, sda, scl);
 			break;
 		}
 	}
@@ -103,5 +103,5 @@ void setup_i2c(unsigned i2c_index, int speed, int slave_addr,
 	/* Make sure bus is idle */
 	force_idle_bus(p);
 	bus_i2c_init(i2c_bases[i2c_index], speed, slave_addr,
-			force_idle_bus, p);
+		     force_idle_bus, p);
 }
