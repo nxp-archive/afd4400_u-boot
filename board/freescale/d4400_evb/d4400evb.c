@@ -286,14 +286,12 @@ static void setup_serdes_sgmii_mode(void)
 
 	if (0 == timeout)
 		printf("SERDES reset failed\n");
-
 }
 
 static void setup_enet(void)
 {
-
 	struct d4400_ccm_reg *ccm_regs =
-		(struct d4400_ccm_reg *) CCM_BASE_ADDR;
+		(struct d4400_ccm_reg *)CCM_BASE_ADDR;
 
 	setup_iomux_mdio();
 
@@ -720,10 +718,10 @@ int board_init(void)
 {
 #if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
 	printf("QIXIS: %02x:%02x - %02x.%02x\n",
-		readb(CONFIG_QIXIS_BASE_ADDR + 0),
-		readb(CONFIG_QIXIS_BASE_ADDR + 1),
-		readb(CONFIG_QIXIS_BASE_ADDR + 2),
-		readb(CONFIG_QIXIS_BASE_ADDR + 3));
+	       readb(CONFIG_QIXIS_BASE_ADDR + 0),
+	       readb(CONFIG_QIXIS_BASE_ADDR + 1),
+	       readb(CONFIG_QIXIS_BASE_ADDR + 2),
+	       readb(CONFIG_QIXIS_BASE_ADDR + 3));
 #endif
 
 #ifdef CONFIG_OVDD_VSEL

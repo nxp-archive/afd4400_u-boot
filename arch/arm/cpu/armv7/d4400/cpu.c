@@ -49,18 +49,17 @@ int print_cpuinfo(void)
 	prev = get_product_rev();
 	srev = get_silicon_rev();
 
-	printf("CPU:Freescale D4400 prev-0x%x, srev-0x%x"
-		"at %d MHz\n",
-		prev, srev,
-		d4400_get_clock(MXC_ARM_CLK, 0) / 1000000);
+	printf("CPU:Freescale D4400 prev-0x%x, srev-0x%x at %d MHz\n",
+	       prev, srev,
+	       d4400_get_clock(MXC_ARM_CLK, 0) / 1000000);
 	printf("Reset cause: 0x%08x\n",
-			get_reset_cause());
+	       get_reset_cause());
 	printf("DDR Clock:  %dMHz\n",
-			d4400_get_clock(MXC_DDR_CLK, 0) / 1000000);
+	       d4400_get_clock(MXC_DDR_CLK, 0) / 1000000);
 	printf("ARM Clock:  %dMHz\n",
-			d4400_get_clock(MXC_ARM_CLK, 0) / 1000000);
+	       d4400_get_clock(MXC_ARM_CLK, 0) / 1000000);
 	printf("VSPA Clock: %dMHz\n",
-			d4400_get_clock(MXC_VSPA_CLK, 0) / 1000000);
+	       d4400_get_clock(MXC_VSPA_CLK, 0) / 1000000);
 
 	return 0;
 }

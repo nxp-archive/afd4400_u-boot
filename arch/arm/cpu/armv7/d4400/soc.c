@@ -124,7 +124,6 @@ void enable_caches(void)
 
 unsigned int d4400_get_eth0_mode(void)
 {
-
 	struct src *src_p = (struct src *)(SRC_BASE_ADDR);
 
 	return (src_p->sbmr & SRC_SBMR_ETH_MODE_MASK) >>
@@ -133,7 +132,7 @@ unsigned int d4400_get_eth0_mode(void)
 
 unsigned int d4400_get_tsec_flags(void)
 {
-	tsec_t *regs = (tsec_t*)TSEC_BASE_ADDR;
+	tsec_t *regs = (tsec_t *)TSEC_BASE_ADDR;
 	u32 ecntrl;
 	int flags = 0;
 

@@ -97,7 +97,7 @@ int timer_init(void)
 
 	__raw_writel(0xffffffff, &cur_epit->load);
 	__raw_writel(EPITCR_EN | EPITCR_CLKSRC_REF_LOW | EPITCR_WAITEN,
-		&cur_epit->control);
+		     &cur_epit->control);
 
 	lastinc = __raw_readl(&cur_epit->counter);
 	timestamp = 0;
@@ -136,7 +136,7 @@ ulong get_timer_masked(void)
 
 ulong get_timer(ulong base)
 {
-    return get_timer_masked() - base;
+	return get_timer_masked() - base;
 }
 
 /* delay x useconds AND preserve advance timstamp value */

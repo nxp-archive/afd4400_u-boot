@@ -24,8 +24,6 @@
 #include <serial.h>
 #include <linux/compiler.h>
 
-#define __REG(x)     (*((volatile u32 *)(x)))
-
 #ifndef CONFIG_D4400_UART_BASE
 #error "define CONFIG_D4400_UART_BASE to use the D4400 UART driver"
 #endif
@@ -153,27 +151,26 @@ static void d4400_serial_setbrg(void)
 	if (!gd->baudrate)
 		gd->baudrate = CONFIG_BAUDRATE;
 
-	__REG(UART_PHYS + UFCR) = UFCR_RFDIV_BY_1;
-	__REG(UART_PHYS + UBIR) = 0xf;
-	__REG(UART_PHYS + UBMR) = (clk / gd->baudrate)-1;
-
+	writel(UFCR_RFDIV_BY_1, UART_PHYS + UFCR);
+	writel(0xF, UART_PHYS + UBIR);
+	writel((clk / gd->baudrate)-1, UART_PHYS + UBMR);
 }
 
 static int d4400_serial_getc(void)
 {
-	while (!(__REG(UART_PHYS + USR2) & USR2_RDR))
+	while (!(readl(UART_PHYS + USR2) & USR2_RDR))
 		WATCHDOG_RESET();
 
-	return __REG(UART_PHYS + URXD) & URXD_RX_DATA;
+	return readl(UART_PHYS + URXD) & URXD_RX_DATA;
 }
 
 static void d4400_serial_putc(const char c)
 {
 	/* wait for transmitter to be ready */
-	while (!(__REG(UART_PHYS + USR2) & USR2_TXDC))
+	while (!(readl(UART_PHYS + USR2) & USR2_TXDC))
 		WATCHDOG_RESET();
 
-	__REG(UART_PHYS + UTXD) = c;
+	writel(c, UART_PHYS + UTXD);
 
 	/* If \n, also do \r */
 	if (c == '\n')
@@ -185,7 +182,7 @@ static void d4400_serial_putc(const char c)
  */
 static int d4400_serial_tstc(void)
 {
-	if (__REG(UART_PHYS + USR2) & USR2_RDR)
+	if (readl(UART_PHYS + USR2) & USR2_RDR)
 		return 1;
 	return 0;
 }
@@ -197,24 +194,34 @@ static int d4400_serial_tstc(void)
  */
 static int d4400_serial_init(void)
 {
-	__REG(UART_PHYS + UCR1) = RESET_REG;
-	__REG(UART_PHYS + UCR2) = RESET_REG;
+	u32 val;
+
+	writel(RESET_REG, UART_PHYS + UCR1);
+	writel(RESET_REG, UART_PHYS + UCR2);
 
 	while (1) {
-		if (__REG(UART_PHYS + UCR2) & UCR2_SRST)
+		if (readl(UART_PHYS + UCR2) & UCR2_SRST)
 			break;
 	}
-	__REG(UART_PHYS + UCR1) |= UCR1_UARTEN;
+	val = readl(UART_PHYS + UCR1);
+	val |= UCR1_UARTEN;
+	writel(val, UART_PHYS + UCR1);
 
 	serial_setbrg();
 
-	__REG(UART_PHYS + UCR2) |= UCR2_WS | UCR2_IRTS | UCR2_RXEN |\
-					UCR2_TXEN | UCR2_CTSC;
+	val = readl(UART_PHYS + UCR2);
+	val |= UCR2_WS | UCR2_IRTS | UCR2_RXEN |
+		UCR2_TXEN | UCR2_CTSC;
+	writel(val, UART_PHYS + UCR2);
 
-	__REG(UART_PHYS + UCR3) |= UCR3_RXDMUXSEL | UCR3_DCD |\
-							UCR3_DSR | UCR3_RI;
+	val = readl(UART_PHYS + UCR3);
+	val |= UCR3_RXDMUXSEL | UCR3_DCD |
+			UCR3_DSR | UCR3_RI;
+	writel(val, UART_PHYS + UCR3);
 
-	__REG(UART_PHYS + UCR4) |= UCR4_LPBYP;
+	val = readl(UART_PHYS + UCR4);
+	val |= UCR4_LPBYP;
+	writel(val, UART_PHYS + UCR4);
 
 	return 0;
 }

@@ -90,7 +90,7 @@ static uint32_t detect_d4400_image_version(struct d4400_header *d4400_hdr)
 	struct ivt_table *ivthdr = &bhdr->ivt;
 
 	if ((ivthdr->app_code_barker == APP_CODE_BARKER) &&
-			(bhdr->dcd_table.preamble.barker == DCD_BARKER))
+	    (bhdr->dcd_table.preamble.barker == DCD_BARKER))
 		return D4400_IMAGE;
 
 	return D4400_IMAGE_VER_INVALID;
@@ -113,8 +113,8 @@ static void set_dcd_val(struct d4400_header *d4400_hdr, char *name, int lineno,
 	case CFG_REG_SIZE:
 		/* Byte, halfword, word */
 		if ((value != 1) && (value != 2) && (value != 4)) {
-			fprintf(stderr, "Error: %s[%d] - "
-				"Invalid register size " "(%d)\n",
+			fprintf(stderr,
+				"Error: %s[%d] - Invalid register size " "(%d)\n",
 				name, lineno, value);
 			exit(EXIT_FAILURE);
 		}
@@ -141,8 +141,8 @@ static void set_dcd_rst(struct d4400_header *d4400_hdr, uint32_t dcd_len,
 	struct dcd_block *dcd = &d4400_hdr->hdr.dcd_table;
 
 	if (dcd_len > MAX_DCD_ENTRY) {
-		fprintf(stderr, "Error: %s[%d] -"
-			"DCD table exceeds maximum size(%d)\n",
+		fprintf(stderr,
+			"Error: %s[%d] -DCD table exceeds maximum size(%d)\n",
 			name, lineno, MAX_DCD_ENTRY);
 		exit(EXIT_FAILURE);
 	}
@@ -162,7 +162,7 @@ static void set_d4400_hdr(struct d4400_header *d4400_hdr, uint32_t dcd_len,
 	/* Exit if there is no BOOT_FROM field specifying the ivt_offset */
 	if (d4400_hdr->flash_offset == IVT_OFFSET_UNDEFINED) {
 		fprintf(stderr, "Error: Header: No BOOT_FROM tag in %s\n",
-				params->imagename);
+			params->imagename);
 		exit(EXIT_FAILURE);
 	}
 
@@ -224,20 +224,20 @@ static void parse_cfg_cmd(struct d4400_header *d4400_hdr, int32_t cmd,
 	case CMD_IMAGE_VERSION:
 		d4400_image_version = get_cfg_value(token, name, lineno);
 		if (cmd_ver_first == 0) {
-			fprintf(stderr, "Error: %s[%d] - IMAGE_VERSION "
-				"command need be the first before other "
-				"valid command in the file\n", name, lineno);
+			fprintf(stderr, "Error: %s[%d] - IMAGE_VERSION command need be the first before other valid command in the file\n",
+				name, lineno);
 			exit(EXIT_FAILURE);
 		}
 		cmd_ver_first = 1;
 		break;
 	case CMD_BOOT_FROM:
-		d4400_hdr->flash_offset = get_table_entry_id \
+		d4400_hdr->flash_offset = get_table_entry_id
 			(d4400_image_bootops, "d4400image boot option", token);
 		if (d4400_hdr->flash_offset == -1) {
-			fprintf(stderr, "Error: %s[%d] -Invalid boot device"
-				"(%s)\n", name, lineno, token);
-			exit(EXIT_FAILURE);
+			fprintf(stderr,
+				"Error: %s[%d] -Invalid boot device (%s)\n",
+				name, lineno, token);
+				exit(EXIT_FAILURE);
 		}
 		if (unlikely(cmd_ver_first != 1))
 			cmd_ver_first = 0;
@@ -259,16 +259,17 @@ static void parse_cfg_fld(struct d4400_header *d4400_hdr, int32_t *cmd,
 	switch (fld) {
 	case CFG_COMMAND:
 		*cmd = get_table_entry_id(d4400_image_cmds,
-			"d4400image commands", token);
+				"d4400image commands", token);
 		if (*cmd < 0) {
-			fprintf(stderr, "Error: %s[%d] - Invalid command"
-			"(%s)\n", name, lineno, token);
+			fprintf(stderr,
+				"Error: %s[%d] - Invalid command(%s)\n",
+				name, lineno, token);
 			exit(EXIT_FAILURE);
 		}
 		break;
 	case CFG_REG_SIZE:
 		parse_cfg_cmd(d4400_hdr, *cmd, token, name, lineno, fld,
-				*dcd_len);
+			      *dcd_len);
 		break;
 	case CFG_REG_ADDRESS:
 	case CFG_REG_VALUE:
@@ -314,7 +315,7 @@ static uint32_t parse_cfg_file(struct d4400_header *d4400_hdr, char *name)
 
 		/* Check inside the single line */
 		for (fld = CFG_COMMAND, cmd = CMD_INVALID,
-				line = token; ; line = NULL, fld++) {
+				line = token;; line = NULL, fld++) {
 			token = strtok_r(line, " \t", &saveptr2);
 			if (token == NULL)
 				break;
@@ -324,9 +325,8 @@ static uint32_t parse_cfg_file(struct d4400_header *d4400_hdr, char *name)
 				break;
 
 			parse_cfg_fld(d4400_hdr, &cmd, token, name,
-					lineno, fld, &dcd_len);
+				      lineno, fld, &dcd_len);
 		}
-
 	}
 
 	set_dcd_rst(d4400_hdr, dcd_len, name, lineno);
@@ -346,7 +346,7 @@ static int d4400_image_check_image_types(uint8_t type)
 static int d4400_image_verify_header(unsigned char *ptr, int image_size,
 			struct mkimage_params *params)
 {
-	struct d4400_header *d4400_hdr = (struct d4400_header *) ptr;
+	struct d4400_header *d4400_hdr = (struct d4400_header *)ptr;
 
 	if (detect_d4400_image_version(d4400_hdr) == D4400_IMAGE_VER_INVALID)
 		return -FDT_ERR_BADSTRUCTURE;
@@ -356,7 +356,7 @@ static int d4400_image_verify_header(unsigned char *ptr, int image_size,
 
 static void d4400_image_print_header(const void *ptr)
 {
-	struct d4400_header *d4400_hdr = (struct d4400_header *) ptr;
+	struct d4400_header *d4400_hdr = (struct d4400_header *)ptr;
 	uint32_t version = detect_d4400_image_version(d4400_hdr);
 
 	switch (version) {
@@ -390,8 +390,7 @@ int d4400_image_check_params(struct mkimage_params *params)
 	if (!params)
 		return CFG_INVALID;
 	if (!strlen(params->imagename)) {
-		fprintf(stderr, "Error: %s - Configuration file not specified, "
-			"it is needed for d4400 image generation\n",
+		fprintf(stderr, "Error: %s - Configuration file not specified, it is needed for d4400 image generation\n",
 			params->cmdname);
 		return CFG_INVALID;
 	}

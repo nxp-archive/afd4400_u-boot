@@ -79,47 +79,43 @@ enum d4400_vspa_dp_sel {
 	VSPA_PLL_DDR_CLK,
 	VSPA_PLL_DDR_BYP_2_CLK,
 };
+
 struct d4400_ccm_reg *d4400_ccm = (struct d4400_ccm_reg *)CCM_BASE_ADDR;
+
 static u32 get_clk_source(u32 plltype)
 {
-    u32 src;
-    u32 gcr0_bits_19_20;
-    u32 gcr0_bits_21_22;
-    switch(plltype)
-    {
-        case PLL_SYS:
-            gcr0_bits_19_20 = ((*((volatile u32 *)(GCR_0_CONFIG_REG))) >> 19) & 0x3;
-            if(gcr0_bits_19_20 == 0x00)
-                src = D4400_DEV_CLK;
-            else if(gcr0_bits_19_20 == 0x11)
-                src = D4400_SGMII_CLK;
-            else
-                src = 0x00;
-	    break;
+	u32 reg;
 
-        case PLL_DDR:
-            gcr0_bits_21_22 = ((*((volatile u32 *)(GCR_0_CONFIG_REG))) >> 21) & 0x3;
-            if(gcr0_bits_21_22 == 0x00)
-                src = D4400_DEV_CLK;
-            else if(gcr0_bits_21_22 == 0x11)
-                src = D4400_SGMII_CLK;
-            else
-                src = 0x00;
-            break;
+	switch (plltype) {
+	case PLL_SYS:
+		reg = readl(GCR_0_CONFIG_REG);
+		reg >>= GCR0_SYS_PLL_OFFSET;
+		reg &= GCR0_SYS_PLL_MASK;
 
-        case PLL_TBGEN:
-            src = D4400_DEV_CLK;
-            break;
+		if (reg == 0x00)
+			return D4400_DEV_CLK;
+		else if (reg == 0x11)
+			return D4400_SGMII_CLK;
+		else
+			return 0;
+	case PLL_DDR:
+		reg = readl(GCR_0_CONFIG_REG);
+		reg >>= GCR0_DDR_PLL_OFFSET;
+		reg &= GCR0_DDR_PLL_MASK;
 
-        case PLL_TBGEN_HALF:
-            src = D4400_DEV_CLK;
-            break;
-
-        default:
-            src = 0x00;
-            break;
-    }
-  return src;
+		if (reg == 0x00)
+			return D4400_DEV_CLK;
+		else if (reg == 0x11)
+			return D4400_SGMII_CLK;
+		else
+			return 0;
+	case PLL_TBGEN:
+		return D4400_DEV_CLK;
+	case PLL_TBGEN_HALF:
+		return D4400_DEV_CLK;
+	default:
+		return 0;
+	}
 }
 
 /* i2c_num can be from 0 - 10 */
@@ -150,7 +146,10 @@ static u32 decode_pll(enum pll_clocks pll)
 {
 	u32 mult;
 	u32 src;
-	src= get_clk_source(pll);
+	src = get_clk_source(pll);
+	if (!src)
+		printf("Wrong PLL clock parent source: %d", src);
+
 	switch (pll) {
 	case PLL_SYS:
 		mult = __raw_readl(&d4400_ccm->spllgsr);
@@ -174,8 +173,8 @@ static u32 decode_pll(enum pll_clocks pll)
 		src /= PLL_TBGEN_DIV_BY_2;
 		break;
 	default:
-		printf("Error: Decode Pll invalid argument- "
-				"0x%08x passed\n", pll);
+		printf(
+		"Error: Decode Pll invalid argument- 0x%08x passed\n", pll);
 		return 0;
 	}
 
@@ -432,8 +431,9 @@ static u32 get_mmdc_clk(void)
 		freq >>= 1;
 		return freq  / (div + 1);
 	default:
-		printf("Error:MMDC source selection invalid argument-"
-			       " 0x%08x passed\n", sel);
+		printf(
+		"Error:MMDC source selection invalid"
+		"argument- 0x%08x passed\n", sel);
 		return 0;
 	}
 }
@@ -570,7 +570,6 @@ static u32 get_ecspi_clk(u32 port)
 		return get_sys_bus_clk() / (div + 1);
 	else
 		return get_ref_clk() / (div + 1);
-
 }
 
 u32 d4400_get_ecspi_clk(u32 port)
@@ -656,7 +655,6 @@ static u32 get_ref_sys_byp_clk(void)
 		return D4400_CORE_BYPASS_CLK;
 	else
 		return get_ref_clk();
-
 }
 #endif
 
@@ -751,7 +749,8 @@ static u32 get_ccm_at_clk(void)
 	return clk / (div + 1);
 }
 
-unsigned int d4400_get_clock(enum mxc_clock clk, unsigned int port)
+unsigned int d4400_get_clock(enum mxc_clock clk,
+		unsigned int port)
 {
 	switch (clk) {
 	case MXC_ARM_CLK:
@@ -903,113 +902,116 @@ int do_d4400_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	printf("\n");
 	printf("ARM            %8d kHz\n",
-		(d4400_get_clock(MXC_ARM_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ARM_CLK, 0) + 500) / 1000);
 	printf("PER            %8d kHz\n",
-		(d4400_get_clock(MXC_PER_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_PER_CLK, 0) + 500) / 1000);
 	printf("AHB            %8d kHz\n",
-		(d4400_get_clock(MXC_AHB_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_AHB_CLK, 0) + 500) / 1000);
 	printf("IPG            %8d kHz\n",
-		(d4400_get_clock(MXC_IPG_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_IPG_CLK, 0) + 500) / 1000);
 	printf("UART1          %8d kHz\n",
-		(d4400_get_clock(MXC_UART1_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_UART1_CLK, 0) + 500) / 1000);
 	printf("UART2          %8d kHz\n",
-		(d4400_get_clock(MXC_UART2_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_UART2_CLK, 0) + 500) / 1000);
 	printf("UART3          %8d kHz\n",
-		(d4400_get_clock(MXC_UART3_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_UART3_CLK, 0) + 500) / 1000);
 	printf("UART4          %8d kHz\n",
-		(d4400_get_clock(MXC_UART4_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_UART4_CLK, 0) + 500) / 1000);
 	printf("AXI            %8d kHz\n",
-		(d4400_get_clock(MXC_AXI_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_AXI_CLK, 0) + 500) / 1000);
 	printf("DDR            %8d kHz\n",
-		(d4400_get_clock(MXC_DDR_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_DDR_CLK, 0) + 500) / 1000);
 	printf("VSPA           %8d kHz\n",
-		(d4400_get_clock(MXC_VSPA_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_VSPA_CLK, 0) + 500) / 1000);
 	printf("RAM 2X         %8d kHz\n",
-		(d4400_get_clock(MXC_RAM_2X_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_RAM_2X_CLK, 0) + 500) / 1000);
 	printf("SYS            %8d kHz\n",
-		(d4400_get_clock(MXC_SYS_BUS_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_SYS_BUS_CLK, 0) + 500) / 1000);
 	printf("GPC            %8d kHz\n",
-		(d4400_get_clock(MXC_GPC_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_GPC_CLK, 0) + 500) / 1000);
 	printf("REF            %8d kHz\n",
-		(d4400_get_clock(MXC_REF_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_REF_CLK, 0) + 500) / 1000);
 	printf("WEIM           %8d kHz\n",
-		(d4400_get_clock(MXC_WEIM_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_WEIM_CLK, 0) + 500) / 1000);
 	printf("ETSEC AXI      %8d kHz\n",
-		(d4400_get_clock(MXC_ETSEC_AXI_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ETSEC_AXI_CLK, 0) + 500) / 1000);
 	printf("ETSEC RTC      %8d kHz\n",
-		(d4400_get_clock(MXC_ETSEC_RTC_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ETSEC_RTC_CLK, 0) + 500) / 1000);
 	printf("SYNC_REF       %8d kHz\n",
-		(d4400_get_clock(MXC_SYNC_REF_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_SYNC_REF_CLK, 0) + 500) / 1000);
 	printf("I2C1           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C1_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C1_CLK, 0) + 500) / 1000);
 	printf("I2C2           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C2_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C2_CLK, 0) + 500) / 1000);
 	printf("I2C3           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C3_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C3_CLK, 0) + 500) / 1000);
 	printf("I2C4           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C4_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C4_CLK, 0) + 500) / 1000);
 	printf("I2C5           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C5_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C5_CLK, 0) + 500) / 1000);
 	printf("I2C6           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C6_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C6_CLK, 0) + 500) / 1000);
 	printf("I2C7           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C7_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C7_CLK, 0) + 500) / 1000);
 	printf("I2C8           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C8_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C8_CLK, 0) + 500) / 1000);
 	printf("I2C9           %8d kHz\n",
-		(d4400_get_clock(MXC_I2C9_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C9_CLK, 0) + 500) / 1000);
 	printf("I2C10          %8d kHz\n",
-		(d4400_get_clock(MXC_I2C10_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C10_CLK, 0) + 500) / 1000);
 	printf("I2C11          %8d kHz\n",
-		(d4400_get_clock(MXC_I2C11_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_I2C11_CLK, 0) + 500) / 1000);
 	printf("ECSPI1         %8d kHz\n",
-		(d4400_get_clock(MXC_ECSPI1_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ECSPI1_CLK, 0) + 500) / 1000);
 	printf("ECSPI2         %8d kHz\n",
-		(d4400_get_clock(MXC_ECSPI2_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ECSPI2_CLK, 0) + 500) / 1000);
 	printf("ECSPI3         %8d kHz\n",
-		(d4400_get_clock(MXC_ECSPI3_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ECSPI3_CLK, 0) + 500) / 1000);
 	printf("ECSPI4         %8d kHz\n",
-		(d4400_get_clock(MXC_ECSPI4_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ECSPI4_CLK, 0) + 500) / 1000);
 	printf("ECSPI5         %8d kHz\n",
-		(d4400_get_clock(MXC_ECSPI5_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ECSPI5_CLK, 0) + 500) / 1000);
 	printf("ECSPI6         %8d kHz\n",
-		(d4400_get_clock(MXC_ECSPI6_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ECSPI6_CLK, 0) + 500) / 1000);
 	printf("ECSPI7         %8d kHz\n",
-		(d4400_get_clock(MXC_ECSPI7_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ECSPI7_CLK, 0) + 500) / 1000);
 	printf("ECSPI8         %8d kHz\n",
-		(d4400_get_clock(MXC_ECSPI8_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ECSPI8_CLK, 0) + 500) / 1000);
 	printf("TBGEN DEV      %8d kHz\n",
-		(d4400_get_clock(MXC_TBGEN_DEV_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_TBGEN_DEV_CLK, 0) + 500) / 1000);
 	printf("TBGEN          %8d kHz\n",
-		(d4400_get_clock(MXC_TBGEN_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_TBGEN_CLK, 0) + 500) / 1000);
 	printf("JESD204RX      %8d kHz\n",
-		(d4400_get_clock(MXC_JESD204RX_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_JESD204RX_CLK, 0) + 500) / 1000);
 	printf("JESD204TX      %8d kHz\n",
-		(d4400_get_clock(MXC_JESD204TX_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_JESD204TX_CLK, 0) + 500) / 1000);
 	printf("JESD204TX CPRI %8d kHz\n",
-		(d4400_get_clock(MXC_JESD204TX_CPRI_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_JESD204TX_CPRI_CLK, 0) + 500)
+	       / 1000);
 	printf("JESD204RX CPRI %8d kHz\n",
-		(d4400_get_clock(MXC_JESD204RX_CPRI_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_JESD204RX_CPRI_CLK, 0) + 500)
+	       / 1000);
 	printf("VSPA DP        %8d kHz\n",
-		(d4400_get_clock(MXC_VSPA_DP_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_VSPA_DP_CLK, 0) + 500) / 1000);
 	printf("CPRI1 AXI      %8d kHz\n",
-		(d4400_get_clock(MXC_CPRI1_AXI_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_CPRI1_AXI_CLK, 0) + 500) / 1000);
 	printf("CPRI2 AXI      %8d kHz\n",
-		(d4400_get_clock(MXC_CPRI2_AXI_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_CPRI2_AXI_CLK, 0) + 500) / 1000);
 	printf("CCM AT         %8d kHz\n",
-		(d4400_get_clock(MXC_CCM_AT_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_CCM_AT_CLK, 0) + 500) / 1000);
 	printf("DEBUG          %8d kHz\n",
-		(d4400_get_clock(MXC_DEBUG_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_DEBUG_CLK, 0) + 500) / 1000);
 	printf("SYNC CKIL      %8d kHz\n",
-		(d4400_get_clock(MXC_SYNC_CKIL_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_SYNC_CKIL_CLK, 0) + 500) / 1000);
 	printf("ASYNC CKIL     %8d kHz\n",
-		(d4400_get_clock(MXC_ASYNC_CKIL_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_ASYNC_CKIL_CLK, 0) + 500) / 1000);
 	printf("BISR           %8d kHz\n",
-		(d4400_get_clock(MXC_BISR_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_BISR_CLK, 0) + 500) / 1000);
 	printf("MMDC           %8d kHz\n",
-		(d4400_get_clock(MXC_MMDC_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_MMDC_CLK, 0) + 500) / 1000);
 	printf("SGMII PHY REF  %8d kHz\n",
-		(d4400_get_clock(MXC_SGMII_PHY_REF_CLK, 0) + 500) / 1000);
+	       (d4400_get_clock(MXC_SGMII_PHY_REF_CLK, 0) + 500)
+	       / 1000);
 	return 0;
 }
 
