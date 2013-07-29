@@ -73,9 +73,9 @@ enum FPGA_GVDD_VSEL {
 
 #define QIXIS_PWR_CTL2_REG_OFFSET 0x21
 #define QIXIS_GVDD_REG_MASK 0x3
-#define QIXIS_GVDDA_REG_OFFSET 0x0
-#define QIXIS_GVDDB_REG_OFFSET 0x2
-#define QIXIS_GVDDC_REG_OFFSET 0x4
+#define QIXIS_GVDDA_REG_OFFSET 0x6
+#define QIXIS_GVDDB_REG_OFFSET 0x4
+#define QIXIS_GVDDC_REG_OFFSET 0x2
 #endif
 int dram_init(void)
 {
@@ -598,7 +598,6 @@ void setup_ovdd_vsel()
 {
 #if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
 	u8 reg = readb(CONFIG_QIXIS_BASE_ADDR + QIXIS_PWR_CTL2_REG_OFFSET);
-
 	u8 val = reg;
 	val >>= QIXIS_GVDDA_REG_OFFSET;
 	val &= QIXIS_GVDD_REG_MASK;
@@ -667,15 +666,10 @@ void setup_ovdd_vsel()
 	}
 #endif
 
-/* CONFIG_JVDD_HW_SEL_DEFAULT - 1.8V */
-#ifdef CONFIG_JVDD_HW_SEL_DEFAULT
-	writel(0x00000007, FVDD_VSEL_REG);
-	writel(0x00000007, JVDD_VSEL_REG);
-#else
-	writel(0x00000004, FVDD_VSEL_REG);
-	writel(0x00000004, JVDD_VSEL_REG);
-#endif
-	writel(0x00000007, GVDD5_VSEL_REG);
+    /* DEFAULT_JFVDD - 3.3V */
+	writel(DEFAULT_JFVDD, FVDD_VSEL_REG);
+	writel(DEFAULT_JFVDD, JVDD_VSEL_REG);
+	writel(DEFAULT_JFVDD, GVDD5_VSEL_REG);
 }
 #endif
 

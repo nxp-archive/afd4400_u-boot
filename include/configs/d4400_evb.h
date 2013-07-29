@@ -89,7 +89,7 @@
 
 /*VDD_VSEL Selection*/
 #define CONFIG_OVDD_VSEL
-
+#define DEFAULT_JFVDD    0x00000004
 /* Allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
 #define CONFIG_CONS_INDEX		1
