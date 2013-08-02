@@ -23,8 +23,10 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)lib$(BOARD).o
 
-COBJS	:= d4400evb.o status.o
+COBJS-y	+= d4400evb.o status.o
+COBJS-$(CONFIG_OF_LIBFDT) += fdt.o
 
+COBJS	= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))
 

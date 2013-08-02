@@ -38,6 +38,10 @@
 #include <asm/arch/fsl_serdes.h>
 #include <asm/arch/i2c.h>
 #include <i2c.h>
+#if defined(CONFIG_OF_LIBFDT)
+#include <libfdt.h>
+#endif
+
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -720,3 +724,10 @@ int checkboard(void)
 	puts("Board: D4400-EVB\n");
 	return 0;
 }
+
+#if defined(CONFIG_OF_BOARD_SETUP)
+void ft_board_setup(void *blob, bd_t *bd)
+{
+	ft_cpu_setup(blob, bd);
+}
+#endif
