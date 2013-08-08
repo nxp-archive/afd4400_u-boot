@@ -26,6 +26,7 @@ LIB     = $(obj)lib$(SOC).o
 
 ifeq ($(SOC),$(filter $(SOC),d4400))
 COBJS-y	= iomux.o timer.o cpu.o soc.o clock.o i2c.o
+COBJS-$(CONFIG_OF_LIBFDT) += fdt.o
 endif
 COBJS	:= $(sort $(COBJS-y))
 SOBJS   = lowlevel_init.o
