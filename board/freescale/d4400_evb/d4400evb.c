@@ -598,7 +598,7 @@ static void setup_i2c_busses(void)
 #endif
 
 #ifdef CONFIG_OVDD_VSEL
-void setup_ovdd_vsel()
+void setup_ovdd_vsel(void)
 {
 #if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
 	u8 reg = readb(CONFIG_QIXIS_BASE_ADDR + QIXIS_PWR_CTL2_REG_OFFSET);
