@@ -73,6 +73,7 @@ BIN_FILES-$(CONFIG_MX23) += mxsboot$(SFX)
 BIN_FILES-$(CONFIG_MX28) += mxsboot$(SFX)
 BIN_FILES-$(CONFIG_NETCONSOLE) += ncb$(SFX)
 BIN_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1$(SFX)
+BIN_FILES-$(CONFIG_D4400_UBOOT_VALIDATION_SHA256) += ubsha256$(SFX)
 BIN_FILES-$(CONFIG_KIRKWOOD) += kwboot$(SFX)
 
 # Source files which exist outside the tools directory
@@ -82,6 +83,7 @@ EXT_OBJ_FILES-$(CONFIG_FIT) += common/image-fit.o
 EXT_OBJ_FILES-y += lib/crc32.o
 EXT_OBJ_FILES-y += lib/md5.o
 EXT_OBJ_FILES-y += lib/sha1.o
+EXT_OBJ_FILES-$(CONFIG_D4400_UBOOT_VALIDATION_SHA256) += lib/sha256.o
 
 # Source files located in the tools directory
 OBJ_FILES-$(CONFIG_LCD_LOGO) += bmp_logo.o
@@ -107,6 +109,7 @@ OBJ_FILES-$(CONFIG_MX28) += mxsboot.o
 OBJ_FILES-$(CONFIG_NETCONSOLE) += ncb.o
 NOPED_OBJ_FILES-y += os_support.o
 OBJ_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1.o
+OBJ_FILES-$(CONFIG_D4400_UBOOT_VALIDATION_SHA256) += ubsha256.o
 NOPED_OBJ_FILES-y += ublimage.o
 OBJ_FILES-$(CONFIG_KIRKWOOD) += kwboot.o
 
@@ -223,6 +226,7 @@ $(obj)mkimage$(SFX):	$(obj)aisimage.o \
 			$(obj)os_support.o \
 			$(obj)omapimage.o \
 			$(obj)sha1.o \
+			$(obj)sha256.o \
 			$(obj)d4400image.o \
 			$(obj)ublimage.o \
 			$(LIBFDT_OBJS)
@@ -246,6 +250,9 @@ $(obj)ncb$(SFX):	$(obj)ncb.o
 	$(HOSTSTRIP) $@
 
 $(obj)ubsha1$(SFX):	$(obj)os_support.o $(obj)sha1.o $(obj)ubsha1.o
+	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+
+$(obj)ubsha256$(SFX):	$(obj)os_support.o $(obj)sha256.o $(obj)ubsha256.o
 	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
 
 $(obj)kwboot$(SFX): $(obj)kwboot.o

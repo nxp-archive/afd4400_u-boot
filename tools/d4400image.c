@@ -183,8 +183,11 @@ static void set_d4400_hdr(struct d4400_header *d4400_hdr, uint32_t dcd_len,
 	bhdr->boot_data.size = sbuf->st_size +
 		d4400_hdr->flash_offset +
 		sizeof(struct d4400_header);
-
+#ifdef CONFIG_D4400_UBOOT_VALIDATION_SHA256
+	ivthdr->unified_image = ivthdr->self + sbuf->st_size;
+#else
 	ivthdr->unified_image = 0;
+#endif
 	ivthdr->secondary_image = 0;
 }
 

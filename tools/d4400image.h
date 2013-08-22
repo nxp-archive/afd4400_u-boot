@@ -22,6 +22,7 @@
 #ifndef _D4400IMAGE_H_
 #define _D4400IMAGE_H_
 
+#include <configs/d4400_evb.h>
 /* Number of DCD entries is limited to 200 */
 #define MAX_DCD_ENTRY 200
 

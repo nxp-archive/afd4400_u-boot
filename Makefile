@@ -491,6 +491,9 @@ $(obj)u-boot.pbl:	$(obj)u-boot.bin
 $(obj)u-boot.sha1:	$(obj)u-boot.bin
 		$(obj)tools/ubsha1 $(obj)u-boot.bin
 
+$(obj)u-boot-sha256.d4400:	$(obj)u-boot.d4400
+		$(obj)tools/ubsha256 $(obj)u-boot.d4400 $@
+
 $(obj)u-boot.dis:	$(obj)u-boot
 		$(OBJDUMP) -d $< > $@
 
