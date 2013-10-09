@@ -38,6 +38,14 @@
 
 #define CONFIG_FIT
 
+/* Secondary image need to place in NOR flash at offset 0xc0000*/
+/* Header of the secondary image start at offset 0xc1000*/
+/* Initial 4k need to spare */
+#if defined(CONFIG_D4400_UBOOT_VALIDATION_SHA256) && \
+	defined(CONFIG_D4400_UBOOT_SECONDARY_IMAGE)
+#define SECONDARY_IMAGE_OFFSET_NOR 0xc0000
+#endif
+
 #define CONFIG_D4400_UART
 #define CONFIG_D4400_UART_PORT		4
 #define CONFIG_D4400_UART_BASE		UART4_BASE_ADDR

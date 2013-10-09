@@ -188,7 +188,12 @@ static void set_d4400_hdr(struct d4400_header *d4400_hdr, uint32_t dcd_len,
 #else
 	ivthdr->unified_image = 0;
 #endif
+#if defined(CONFIG_D4400_UBOOT_VALIDATION_SHA256) && \
+	defined(CONFIG_D4400_UBOOT_SECONDARY_IMAGE)
+	ivthdr->secondary_image = SECONDARY_IMAGE_OFFSET_NOR;
+#else
 	ivthdr->secondary_image = 0;
+#endif
 }
 
 static void print_hdr(struct d4400_header *d4400_hdr)
