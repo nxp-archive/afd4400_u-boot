@@ -38,6 +38,9 @@
 
 #define CONFIG_FIT
 
+#define CONFIG_D4400_UBOOT_VALIDATION_SHA256
+#define CONFIG_D4400_UBOOT_SECONDARY_IMAGE
+
 /* Secondary image need to place in NOR flash at offset 0xc0000*/
 /* Header of the secondary image start at offset 0xc1000*/
 /* Initial 4k need to spare */
