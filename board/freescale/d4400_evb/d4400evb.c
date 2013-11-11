@@ -705,6 +705,11 @@ int board_init(void)
 	       readb(CONFIG_QIXIS_BASE_ADDR + 1),
 	       readb(CONFIG_QIXIS_BASE_ADDR + 2),
 	       readb(CONFIG_QIXIS_BASE_ADDR + 3));
+
+    if (EVB_REV_A == readb(CONFIG_QIXIS_BASE_ADDR + 1)) {
+        writel(0x00000200, GCR75);
+        writel(0x00100000, GCR72);
+    }
 #endif
 
 #ifdef CONFIG_OVDD_VSEL

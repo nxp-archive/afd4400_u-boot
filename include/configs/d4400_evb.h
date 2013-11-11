@@ -99,6 +99,11 @@
 #define CONFIG_CMD_WEIM_NOR
 #define CONFIG_QIXIS
 #define CONFIG_QIXIS_BASE_ADDR		(WEIM_BASE_ADDR + 0x10000000)
+#define EVB_REV_A   0x11
+#define EVB_REV_B   0x22
+
+#define GCR75   0x012C0148
+#define GCR72   0x012C013c
 
 /*VDD_VSEL Selection*/
 #define CONFIG_OVDD_VSEL
