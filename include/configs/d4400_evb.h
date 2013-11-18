@@ -41,6 +41,12 @@
 #define CONFIG_D4400_UBOOT_VALIDATION_SHA256
 #define CONFIG_D4400_UBOOT_SECONDARY_IMAGE
 
+#define CONFIG_CMD_EEPROM
+#define CONFIG_SYS_I2C_EEPROM_ADDR              0x54
+#define CONFIG_SYS_EEPROM_PAGE_WRITE_BITS       4
+#define CONFIG_SYS_EEPROM_PAGE_WRITE_DELAY_MS   5
+#define CONFIG_SYS_I2C_EEPROM_ADDR_LEN          1
+
 /* Secondary image need to place in NOR flash at offset 0xc0000*/
 /* Header of the secondary image start at offset 0xc1000*/
 /* Initial 4k need to spare */
