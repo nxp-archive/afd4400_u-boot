@@ -47,6 +47,12 @@
 #define CONFIG_SYS_EEPROM_PAGE_WRITE_DELAY_MS   5
 #define CONFIG_SYS_I2C_EEPROM_ADDR_LEN          1
 
+/* RTC configuration */
+#define CONFIG_CMD_DATE
+#define CONFIG_RTC_DS3231
+#define CONFIG_SYS_I2C_RTC_ADDR         0x68
+#define CONFIG_SYS_RTC_BUS_NUM          9
+
 /* Secondary image need to place in NOR flash at offset 0xc0000*/
 /* Header of the secondary image start at offset 0xc1000*/
 /* Initial 4k need to spare */
