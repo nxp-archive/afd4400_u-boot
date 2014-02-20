@@ -237,13 +237,16 @@ struct iim_fuse_t {
 	u32 ext_eth_phy_addr;
 	u32 reserved1[3];
 	u32 srec;
-	u32 reserved2[39];
+	u32 reserved2[36];
 	u32 macaddr5;
 	u32 macaddr4;
 	u32 macaddr3;
 	u32 macaddr2;
 	u32 macaddr1;
 	u32 macaddr0;
+	u32 reserved3[21];
+	u32 vid1;
+	u32 vid2;
 };
 
 struct iim_regs {

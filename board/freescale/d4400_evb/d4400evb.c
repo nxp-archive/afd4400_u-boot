@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2013 Freescale Semiconductor, Inc.
- * Partha Hazra <b44332@freescale.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -696,6 +695,7 @@ int board_early_init_f(void)
 	return 0;
 }
 
+int configure_vid(void);
 int board_init(void)
 {
 #if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
@@ -720,6 +720,11 @@ int board_init(void)
 #ifdef CONFIG_I2C_MXC
 	setup_i2c_busses();
 #endif
+
+#ifdef CONFIG_ZL6105_VID
+	configure_vid();
+#endif
+
 	return 0;
 }
 

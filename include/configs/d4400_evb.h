@@ -47,6 +47,11 @@
 #define CONFIG_SYS_EEPROM_PAGE_WRITE_DELAY_MS   5
 #define CONFIG_SYS_I2C_EEPROM_ADDR_LEN          1
 
+/* ZL6105 VID configuration */
+#define CONFIG_ZL6105_VID
+#define CONFIG_ZL6105_VID_I2C_BUS_NUM	9
+#define CONFIG_ZL6105_VID_I2C_ADDR	0X23
+
 /* RTC configuration */
 #define CONFIG_CMD_DATE
 #define CONFIG_RTC_DS3231
