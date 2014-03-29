@@ -23,6 +23,26 @@
 #include <common.h>
 #include <command.h>
 #include <i2c.h>
+#include <configs/d4400_evb.h>
+
+#include <asm/io.h>
+#include <asm/arch/imx-regs.h>
+#include <asm/arch/d4400_pins.h>
+#include <asm/arch/ccm_regs.h>
+#include <asm/arch/sys_proto.h>
+#include <asm/errno.h>
+#include <asm/gpio.h>
+#include <asm/arch/iomux.h>
+#include <miiphy.h>
+#include <netdev.h>
+
+//#define DEBUG
+
+// Zilker PMBUS defines
+#define LINEAR_MODE           (0x00)
+#define VOUT_MODE             (0x20)
+#define READ_VOUT             (0x8B)
+#define USER_CONFIG           (0xD1)
 
 enum i2c_bus {
 	I2C1 = 0,
@@ -71,6 +91,15 @@ union currents_t {
 	} s;
 };
 
+static int board_rev(void)
+{
+	int rev = 0;
+#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
+	rev = readb(CONFIG_QIXIS_BASE_ADDR + 1);
+#endif
+	return rev;
+}
+
 static int read_adt7461(uchar chip, int *local_temp, int
 			*ext_temp_int, int *ext_temp_frac)
 {
@@ -114,6 +143,7 @@ static int read_ltc2499(uchar chip, int results[])
 				    (rbuf[1] << 17) |
 				    (rbuf[2] << 9) |
 				    (rbuf[3] << 1)) >> 7);
+		debug(" ch%d = %02X %02X %02X %02X\n", i, rbuf[0], rbuf[1], rbuf[2], rbuf[3]);
 		if ((rbuf[0] & 0xC0) == 0x00) /* -FS */
 			results[i] = -0x01000001;
 		else if ((rbuf[0] & 0xC0) == 0xC0) /* +FS */
@@ -122,6 +152,48 @@ static int read_ltc2499(uchar chip, int results[])
 		debug(" ch%d = 0x%08X\n", i, results[i]);
 	}
 	printf("\n");
+	return 0;
+}
+
+static int read_zilker(int *result)
+{
+	u16 val = 0x0000;
+#if defined(CONFIG_ZL6105_VID)
+	u16 val1 = 0x0000;
+	u32 addr;
+	u8 dataformat;
+	u8 exponent;
+
+	i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
+	addr = CONFIG_ZL6105_VID_I2C_ADDR;
+
+	i2c_read(addr, USER_CONFIG, 1, (u8*)&val, 2);
+	if (val & 3) {
+		/* get voltage mode and format */
+		i2c_read(addr, VOUT_MODE, 1, (u8*)&val, 1);
+		exponent = -(((s8)(val << 3)) >> 3);
+		dataformat = (u8)(val & 0x00E0);
+		if (dataformat == LINEAR_MODE) {
+			/* get regular VOUT voltage */
+			int ctr = 10;
+			int diff;
+			do {
+				mdelay(2);
+				val = 0;
+				i2c_read(addr, READ_VOUT, 1, (u8*)&val, 2);
+				val = (1000ul * val) >> exponent;
+				val1 = 0;
+				mdelay(2);
+				i2c_read(addr, READ_VOUT, 1, (u8*)&val1, 2);
+				val1 = (1000ul * val1) >> exponent;
+				diff = val - val1;
+				if (diff < 0) diff = -diff;
+			} while (ctr-- > 0 && diff > 100);
+		}
+	}
+
+#endif
+	*result = val;
 	return 0;
 }
 
@@ -194,16 +266,31 @@ int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
 	int local_temp, die_temp_int, die_temp_frac;
 	union voltages_t voltages;
 	union currents_t currents;
+	int *v_scale;
+	int ltc_v_ref;
+	int core_volts;
 
-	static int v_scale[] = {
+	static int v_scale_rev_a[] = {
 		3300, 3300, 3300, 3300,
 		3300, 18649, 6600, 3300,
 		3300, 3300, 3300, 3300
+	};
+	static int v_scale_rev_b[] = {
+		2500, 2500, 2500, 5000,
+		5000, 14128, 7819, 2500,
+		5000, 5000, 5000, 5000
 	};
 	static int i_resistor[] = {
 		100, 10, 10, 10,
 		10, 10, 10, 1000
 	};
+
+	ltc_v_ref = 3300;
+	v_scale = v_scale_rev_a;
+	if (board_rev() == EVB_REV_B) {
+		ltc_v_ref = 2500;
+		v_scale = v_scale_rev_b;
+	}
 
 	local_temp = 0;
 	die_temp_int = 0;
@@ -242,6 +329,10 @@ int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
 	if(read_adt7461(0x4C, &local_temp, &die_temp_int, &die_temp_frac) != 0)
 	printf("adt7461 reading failed\n");
 
+	core_volts = 0;
+	if (read_zilker(&core_volts) != 0)
+	printf("Zilker device reading failed at chip addr 0x22\n");
+
 	i2c_set_bus_num(old_i2c_dev);
 	i2c_set_bus_speed(old_i2c_speed);
 
@@ -249,10 +340,11 @@ int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
 		voltages.v[i] = (voltages.v[i] * v_scale[i]) >> 10;
 
 	for (i = 0; i < 8; i++)
-		currents.i[i] = ((((currents.i[i] >> 5) * 3300) >> 10) *
+		currents.i[i] = ((((currents.i[i] >> 5) * ltc_v_ref) >> 10) *
 					i_resistor[i]) >> 10;
 
-	currents.s.temp = (((currents.s.temp >> 6) * 551) >> 13) - 273;
+	currents.s.temp = (((currents.s.temp >> 1) * ltc_v_ref + 785000) / 1570000) -
+					273;
 
 	printf("Pri 12V         : %5d mV\n", voltages.s.vpri_12v0);
 	printf("Pri 5V0         : %5d mV\n", voltages.s.vpri_5v0);
@@ -272,7 +364,11 @@ int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
 	       voltages.s.vsec_gvddb, currents.s.gvddb);
 	printf("GVDDC           : %5d mV, %5d mA\n",
 	       voltages.s.vsec_gvddc, currents.s.gvddc);
-	printf("Core 1V / DVDD  :          %6d mA\n", currents.s.dvdd);
+	if (core_volts > 0)
+		printf("Core 1V / DVDD  : %5d mV,%6d mA\n",
+			core_volts, currents.s.dvdd);
+	else
+		printf("Core 1V / DVDD  :          %6d mA\n", currents.s.dvdd);
 	printf("LTC2499 temp    :   %3d C\n", currents.s.temp);
 	printf("ADT7461 temp    :   %3d C\n", local_temp);
 	printf("AFD4400 temp    :   %3d.%02d C\n", die_temp_int, die_temp_frac);
