@@ -52,7 +52,7 @@ enum d4400_image_fld_types {
 
 enum d4400_image_version {
 	D4400_IMAGE_VER_INVALID = -1,
-	D4400_IMAGE = 1,
+	D4400_IMAGE = 1
 };
 
 struct dcd_addr_data {

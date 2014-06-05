@@ -80,6 +80,122 @@ enum FPGA_GVDD_VSEL {
 #define QIXIS_GVDDB_REG_OFFSET 0x4
 #define QIXIS_GVDDC_REG_OFFSET 0x2
 #endif
+
+#define MMDC_MDCTL             (0x01080000)
+#define MMDC_MDPDC             (0x01080004)
+#define MMDC_MDOTC             (0x01080008)
+#define MMDC_MDCFG0            (0x0108000C)
+#define MMDC_MDCFG1            (0x01080010)
+#define MMDC_MDCFG2            (0x01080014)
+#define MMDC_MDMISC            (0x01080018)
+#define MMDC_MDSCR             (0x0108001C)
+#define MMDC_MDREF             (0x01080020)
+#define MMDC_MDRWD             (0x0108002C)
+#define MMDC_MDOR              (0x01080030)
+#define MMDC_MDASP             (0x01080040)
+#define MMDC_MPZQHWCTRL        (0x01080800)
+#define MMDC_MPODTCTRL         (0x01080818)
+#define MMDC_MPDGCTRL0         (0x0108083C)
+#define MMDC_MPDGCTRL1         (0x01080840)
+#define MMDC_MPRDDLCTL0        (0x01080848)
+#define MMDC_MPWRDLCTL0        (0x01080850)
+#define MMDC_MPRDDLHWCTL       (0x01080860)
+#define MMDC_MPWRDLHWCTL       (0x01080864)
+#define MMDC_MPRDDLHWST0       (0x01080868)
+#define MMDC_MPRDDLHWST1       (0x0108086C)
+#define MMDC_MPWRDLHWST0       (0x01080870)
+#define MMDC_MPWRDLHWST1       (0x01080874)
+#define MMDC_MPPDCMPR2         (0x01080890)
+#define MMDC_MPMUR             (0x010808B8)
+#define OCRAM_ADDR             (0x60000000)
+
+#define ddr_reg32_write(addr, val) { *((volatile u32*)addr) = val; }
+#define ddr_reg32_read(addr) ( *((volatile u32*)addr) )
+
+// This routine is copied into OCRAM and run there to calibrate DDR
+void ddr_calibrate(void)
+{
+        u32 refresh;
+        refresh = ddr_reg32_read(MMDC_MDREF); // Store current DDR Refresh
+
+        /* Put DDR into test mode ready for DDR DQS calibration */
+        ddr_reg32_write(MMDC_MDSCR, 0x00008000); // Disable AXI accesses
+        // wait for Configuration mode
+        while (!(ddr_reg32_read(MMDC_MDSCR) & 0x00004000)) {;}
+
+        ddr_reg32_write(MMDC_MDREF, 0x0000C000); // Disable refresh Cycles
+        ddr_reg32_write(MMDC_MDSCR, 0x00008020); // Manual Refresh Command to DDR
+        ddr_reg32_write(MMDC_MDSCR, 0x04008050); // Precharge All active banks
+        ddr_reg32_write(MMDC_MDSCR, 0x00048033); // MPR command
+        ddr_reg32_write(MMDC_MPPDCMPR2, 0x00000001); // MPR Configure to Controller
+
+        /* Read DQS Calibration */
+        ddr_reg32_write(MMDC_MPDGCTRL0, 0x10000000); // Start Read DQS Calibration
+        // wait for Read DQS Calibration to complete
+        while ((ddr_reg32_read(MMDC_MPDGCTRL0) & 0x10000000) != 0) {;}
+
+        /* Read Calibration */
+        ddr_reg32_write(MMDC_MPRDDLHWCTL, 0x00000010); // Start Read Calibration
+        // wait for Read Calibration to complete
+        while (ddr_reg32_read(MMDC_MPRDDLHWCTL) != 0x00000000) {;}
+
+        /* Write Calibration */
+        ddr_reg32_write(MMDC_MPWRDLHWCTL, 0x00000010); // Start Write Calibration
+        // wait for Write Calibration to complete
+        while (ddr_reg32_read(MMDC_MPWRDLHWCTL) != 0x00000000) {;}
+
+        /* Restore DDR operational state */
+        ddr_reg32_write(MMDC_MDSCR , 0x00008033); // Exit MPR Mode for DDR device
+        ddr_reg32_write(MMDC_MDREF , refresh); // Setup DDR Refresh
+        ddr_reg32_write(MMDC_MDSCR , 0x00000000); // DDR ready
+        // wait for Configuration mode to end
+        while (ddr_reg32_read(MMDC_MDSCR) & 0x00004000) {;}
+}
+
+
+static void dram_cal(void)
+{
+	u32 *src_ptr;
+	u32 *dest_ptr;
+
+	// Copy DDR initialization code into OCRAM
+	dest_ptr = (u32*)OCRAM_ADDR;
+	src_ptr = (u32*)ddr_calibrate;
+	while (src_ptr < ((u32*)dram_cal)) {
+		*dest_ptr++ = *src_ptr++;
+	}
+	// and run it
+	((void (*)(void))OCRAM_ADDR)();
+}
+
+static int do_ddrcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	// ZQ Calibration - MPZQSWCTRL[ZQ_SW_FOR]
+	// Read DQS Cal     - MPDGCTRL0[HW_DG_EN]      => MPDGCTRL#[DG_DL_ABS_OFFSET#]
+	// Read Calibration - MPRDDLHWCTL[HW_RD_DL_EN] => MPRDDLCTL[RD_DL_ABS_OFFSET#]
+	// Write Calibration - MPWRDLHWCTL0[HW_WR_DL_EN] => MPWRDLCTL[WR_DL_ABS_OFFSET#]
+
+	u32 m1 = ddr_reg32_read(MMDC_MPDGCTRL0);
+	u32 m2 = ddr_reg32_read(MMDC_MPDGCTRL1);
+	u32 m3 = ddr_reg32_read(MMDC_MPRDDLCTL0);
+	u32 m4 = ddr_reg32_read(MMDC_MPWRDLCTL0);
+
+	dram_cal();
+
+	printf("MPDGCTRL0: 0x%08X => 0x%08X\n", m1, ddr_reg32_read(MMDC_MPDGCTRL0));
+	printf("MPDGCTRL1: 0x%08X => 0x%08X\n", m2, ddr_reg32_read(MMDC_MPDGCTRL1));
+	printf("MPRDDLCTL: 0x%08X => 0x%08X\n", m3, ddr_reg32_read(MMDC_MPRDDLCTL0));
+	printf("MPWRDLCTL: 0x%08X => 0x%08X\n", m4, ddr_reg32_read(MMDC_MPWRDLCTL0));
+
+	return 0;
+}
+
+U_BOOT_CMD(
+        ddrcal,        1,              1,      do_ddrcal,
+        "run DDR calibration",
+        ""
+);
+
 int dram_init(void)
 {
 	gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
