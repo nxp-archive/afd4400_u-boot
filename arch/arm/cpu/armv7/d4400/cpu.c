@@ -71,7 +71,33 @@ int cpu_eth_init(bd_t *bis)
 	return rc;
 }
 
+// Address of Debug block for each VSPA
+static u32 vspa_debug[] = {
+	0x2001E800, // VSPA_DBG1_GDBEN
+	0x2001F800, // VSPA_DBG2_GDBEN
+	0x20020800, // VSPA_DBG3_GDBEN
+	0x20021800, // VSPA_DBG4_GDBEN
+	0x20026800, // VSPA_DBG5_GDBEN
+	0x20027800, // VSPA_DBG6_GDBEN
+	0x20028800, // VSPA_DBG7_GDBEN
+	0x20022800, // VSPA_DBG8_GDBEN
+	0x20023800, // VSPA_DBG9_GDBEN
+	0x20024800, // VSPA_DBG10_GDBEN
+	0x20025800  // VSPA_DBG11_GDBEN
+};
+
 void reset_cpu(ulong addr)
 {
+	int i;
+	u32* dbg_ptr;
+
+	// Halt each VSPA core to avoid a power spike on hard reset
+	for (i = 0; i < (sizeof(vspa_debug)/sizeof(u32)); i++) {
+		dbg_ptr = (u32*)vspa_debug[i];
+		writel(0x1, &dbg_ptr[0]); // GDBEN : enable invasive debug mode
+		writel(0x4, &dbg_ptr[1]); // RCR : force VSPA into halt mode
+		udelay(5000);
+	}
+	// Use watchdog to force a reset
 	__raw_writew(4, WDOG_BASE_ADDR);
 }
