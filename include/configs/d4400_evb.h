@@ -50,6 +50,7 @@
 /* ZL6105 VID configuration */
 #define CONFIG_ZL6105_VID
 #define CONFIG_ZL6105_VID_I2C_BUS_NUM	9
+#define CONFIG_ZL6105_VID_I2C_SPEED	25000
 #define CONFIG_ZL6105_VID_I2C_ADDR	0X23
 
 /* RTC configuration */

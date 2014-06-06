@@ -90,9 +90,11 @@ static float vid2voltmap[MAX_VID_INDEX] = {
 #define VOUT_MAX              (0x24)
 #define VOUT_MARGIN_HIGH      (0x25)
 #define VOUT_MARGIN_LOW       (0x26)
+#define VOUT_TRANSITION_RATE  (0x27)
 #define VOUT_OV_FAULT_LIMIT   (0x40)
 #define VOUT_UV_FAULT_LIMIT   (0x44)
 #define POWER_GOOD_ON         (0x5E)
+#define READ_VOUT             (0x8B)
 #define USER_CONFIG           (0xD1)
 
 #define OPERATION_MARGIN      (0xF0)
@@ -124,10 +126,58 @@ static u16 convert2linearformat(float volts, u8 exponent) {
 	return (u16)(volts * (1 << exponent));
 }
 
-static void change_voltage(u32 addr, u8 exponent, float from_volts,
-			   float to_volts, u8 operation)
+static void print_zl6105_reg_volts(u16 reg, u8 exponent)
 {
-	u16   val = 0x0000;
+	u32 millivolts = (1000 * reg) >> exponent;
+	printf(" => %4d mV\n", millivolts);
+}
+
+static s32 setup_vid_volts(float to_volts)
+{
+	u32 addr;
+	u16 val=0x0000;
+	u8 dataformat;
+	u8 exponent;
+        int old_i2c_num;
+        int old_i2c_speed;
+
+	if (to_volts > MAXIMUM_VOLTAGE || to_volts < MINIMUM_VOLTAGE) {
+		to_volts += 0.00004; // help with rounding errors
+		int volts_int = to_volts;
+		int volts_frac = (to_volts - volts_int) * 10000;
+		printf("\nVID: ERROR - requested voltage %d.%04d V is outside supported range\n",
+			volts_int, volts_frac);
+		return -1;
+	}
+
+	old_i2c_num = i2c_get_bus_num();
+        old_i2c_speed = i2c_get_bus_speed();
+
+        i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
+        i2c_set_bus_speed(CONFIG_ZL6105_VID_I2C_SPEED);
+
+	addr = CONFIG_ZL6105_VID_I2C_ADDR;
+
+	/* get voltage mode and format */
+	i2c_read(addr, VOUT_MODE, 1, (u8*)&val, 1);
+	exponent = -(((s8)(val << 3)) >> 3);
+	dataformat = (u8)(val & 0x00E0);
+	if (dataformat != LINEAR_MODE) {
+		printf("\niError: VID data format 0x%02x is not LINEAR\n",
+			dataformat);
+		/* can we set it to LINEAR MODE? */
+		i2c_set_bus_num(old_i2c_num);
+		return -1;
+	}
+
+	/* Set voltage transition rate to about 8 mV / mS */
+	val = 0x8100;
+	i2c_write(addr, VOUT_TRANSITION_RATE, 1, (u8*)&val, 2);
+
+	/* get current VOUT voltage */
+	i2c_read(addr, VOUT_COMMAND, 1, (u8*)&val, 2);
+	float from_volts = (1.0 * val) / (1 << exponent);
+
 	float hi_volts = from_volts > to_volts ? from_volts : to_volts;
 	float lo_volts = from_volts < to_volts ? from_volts : to_volts;
 
@@ -151,11 +201,19 @@ static void change_voltage(u32 addr, u8 exponent, float from_volts,
 	val = convert2linearformat((lo_volts - lo_volt_15percent), exponent);
 	i2c_write(addr, VOUT_UV_FAULT_LIMIT, 1, (u8*)&val, 2);
 
-	mdelay(10);
+	mdelay(5);
 	/* switch voltage */
-	val = operation;
+	val = convert2linearformat(to_volts, exponent);
+	i2c_write(addr, VOUT_COMMAND, 1, (u8*)&val, 2);
+	val = OPERATION_MARGIN_OFF;
 	i2c_write(addr, OPERATION, 1, (u8*)&val, 1);
-	mdelay(10);
+	val = convert2linearformat(to_volts, exponent);
+	i2c_write(addr, VOUT_COMMAND, 1, (u8*)&val, 2);
+	val = OPERATION_MARGIN_OFF;
+	i2c_write(addr, OPERATION, 1, (u8*)&val, 1);
+
+	/* Wait for voltage to transition */
+	mdelay(40);
 
 	/* set correct limits around the new voltage */
 	val = convert2linearformat((to_volts + to_volt_10percent), exponent);
@@ -169,84 +227,14 @@ static void change_voltage(u32 addr, u8 exponent, float from_volts,
 
 	val = convert2linearformat((to_volts - to_volt_15percent), exponent);
 	i2c_write(addr, VOUT_UV_FAULT_LIMIT, 1, (u8*)&val, 2);
-}
 
-static void print_zl6105_reg_volts(u16 reg, u8 exponent)
-{
-	u32 millivolts = (1000 * reg) >> exponent;
-	printf(" => %4d mV\n", millivolts);
-}
-
-
-
-static s32 setup_vid_volts(u16 vid, float volts)
-{
-	u32 old_bus, addr;
-	u16 val=0x0000;
-	u8 dataformat;
-	u8 exponent;
-
-	if (volts > MAXIMUM_VOLTAGE || volts < MINIMUM_VOLTAGE) {
-		volts += 0.00004; // help with rounding errors
-		int volts_int = volts;
-		int volts_frac = (volts - volts_int) * 10000;
-		printf("\nVID: ERROR - requested voltage %d.%04d V is outside supported range\n",
-			volts_int, volts_frac);
-		return -1;
-	}
-
-	old_bus = i2c_get_bus_num();
-	i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
-	addr = CONFIG_ZL6105_VID_I2C_ADDR;
-
-	/* get voltage mode and format */
-	i2c_read(addr, VOUT_MODE, 1, (u8*)&val, 1);
-	exponent = -(((s8)(val << 3)) >> 3);
-	dataformat = (u8)(val & 0x00E0);
-	if (dataformat != LINEAR_MODE) {
-		printf("\niError: VID data format 0x%02x is not LINEAR\n",
-			dataformat);
-		/* can we set it to LINEAR MODE? */
-		i2c_set_bus_num(old_bus);
-		return -1;
-	}
-
-	/* get regular VOUT voltage */
-	i2c_read(addr, VOUT_COMMAND, 1, (u8*)&val, 2);
-	float vout_volts = (1.0 * val) / (1 << exponent);
-
-	i2c_read(addr, OPERATION, 1, (u8*)&val, 1);
-	/* If supply is margined then return to normal operation first */
-	if ((val & OPERATION_MARGIN) > OPERATION_MARGIN_OFF) {
-		if (val & 0x20) {
-			i2c_read(addr, VOUT_MARGIN_HIGH, 1, (u8*)&val, 2);
-		} else {
-			i2c_read(addr, VOUT_MARGIN_LOW, 1, (u8*)&val, 2);
-		}
-		float current_volts = (1.0 * val) / (1 << exponent);
-		change_voltage(addr, exponent, current_volts, vout_volts,
-			OPERATION_MARGIN_OFF);
-	}
-
-	/* Margin supply voltage up or down from nominal vout if neeeded */
-	if (volts != vout_volts) {
-		val = convert2linearformat(volts, exponent);
-		if (volts > vout_volts) {
-			i2c_write(addr, VOUT_MARGIN_HIGH, 1, (u8*)&val, 2);
-			change_voltage(addr, exponent, vout_volts, volts,
-			               OPERATION_MARGIN_HIGH);
-		} else {
-			i2c_write(addr, VOUT_MARGIN_LOW, 1, (u8*)&val, 2);
-			change_voltage(addr, exponent, vout_volts, volts,
-				       OPERATION_MARGIN_LOW);
-		}
-	}
-
-	volts += 0.00004; // help with rounding errors
-	int volts_int = volts;
-	int volts_frac = (volts - volts_int) * 10000;
+	to_volts += 0.00004; // help with rounding errors
+	int volts_int = to_volts;
+	int volts_frac = (to_volts - volts_int) * 10000;
 	printf(" %d.%04d Volts\n", volts_int, volts_frac);
-	i2c_set_bus_num(old_bus);
+
+	i2c_set_bus_num(old_i2c_num);
+        i2c_set_bus_speed(old_i2c_speed);
 
 #if defined DEBUG
 	dump_zl6105_regs();
@@ -273,17 +261,24 @@ static s32 setup_vid(u16 vid)
 	int volts_frac = (volts - volts_int) * 10000;
 	printf(" %d.%04d Volts\n", volts_int, volts_frac);
 #endif
-	return setup_vid_volts(vid, volts);
+	return setup_vid_volts(volts);
 }
 
 static void dump_zl6105_regs(void)
 {
-	int old_bus = i2c_get_bus_num();
-	i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
-	u8 exponent;
-
-	int addr = CONFIG_ZL6105_VID_I2C_ADDR;
 	u16 val = 0x0000;
+	u8 exponent;
+	int addr;
+        int old_i2c_num;
+        int old_i2c_speed;
+
+	old_i2c_num = i2c_get_bus_num();
+        old_i2c_speed = i2c_get_bus_speed();
+
+        i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
+        i2c_set_bus_speed(CONFIG_ZL6105_VID_I2C_SPEED);
+
+	addr = CONFIG_ZL6105_VID_I2C_ADDR;
 
 	i2c_read(addr, VOUT_MODE, 1, (u8*)&val, 1);
 	printf("VOUT_MODE:           %04x\n", val);
@@ -320,7 +315,8 @@ static void dump_zl6105_regs(void)
 	i2c_read(addr, USER_CONFIG, 1, (u8*)&val, 2);
 	printf("USER_CONFIG:         %04x\n", val);
 
-	i2c_set_bus_num(old_bus);
+	i2c_set_bus_num(old_i2c_num);
+        i2c_set_bus_speed(old_i2c_speed);
 }
 
 s32 configure_vid(void)
@@ -374,7 +370,7 @@ static int do_set_volts(cmd_tbl_t *cmdtp, int flag, int argc,
 		return CMD_RET_USAGE;
 
 	float val = atof(argv[1]);
-	return setup_vid_volts(0, val);
+	return setup_vid_volts(val);
 }
 
 static int do_show_vid_regs(cmd_tbl_t *cmdtp, int flag, int argc,

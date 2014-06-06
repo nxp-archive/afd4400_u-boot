@@ -159,12 +159,18 @@ static int read_zilker(int *result)
 {
 	u16 val = 0x0000;
 #if defined(CONFIG_ZL6105_VID)
-	u16 val1 = 0x0000;
 	u32 addr;
 	u8 dataformat;
 	u8 exponent;
+	int old_i2c_num;
+	int old_i2c_speed;
+
+	old_i2c_num = i2c_get_bus_num();
+	old_i2c_speed = i2c_get_bus_speed();
 
 	i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
+	i2c_set_bus_speed(CONFIG_ZL6105_VID_I2C_SPEED);
+
 	addr = CONFIG_ZL6105_VID_I2C_ADDR;
 
 	i2c_read(addr, USER_CONFIG, 1, (u8*)&val, 2);
@@ -175,23 +181,13 @@ static int read_zilker(int *result)
 		dataformat = (u8)(val & 0x00E0);
 		if (dataformat == LINEAR_MODE) {
 			/* get regular VOUT voltage */
-			int ctr = 10;
-			int diff;
-			do {
-				mdelay(2);
-				val = 0;
-				i2c_read(addr, READ_VOUT, 1, (u8*)&val, 2);
-				val = (1000ul * val) >> exponent;
-				val1 = 0;
-				mdelay(2);
-				i2c_read(addr, READ_VOUT, 1, (u8*)&val1, 2);
-				val1 = (1000ul * val1) >> exponent;
-				diff = val - val1;
-				if (diff < 0) diff = -diff;
-			} while (ctr-- > 0 && diff > 100);
+			i2c_read(addr, READ_VOUT, 1, (u8*)&val, 2);
+			val = (1000ul * val) >> exponent;
 		}
 	}
 
+	i2c_set_bus_num(old_i2c_num);
+	i2c_set_bus_speed(old_i2c_speed);
 #endif
 	*result = val;
 	return 0;
