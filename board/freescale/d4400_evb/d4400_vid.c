@@ -186,6 +186,8 @@ static s32 setup_vid_volts(float to_volts)
 	float hi_volt_10percent = (hi_volts * 0.10);
 	float hi_volt_15percent = (hi_volts * 0.15);
 	float lo_volt_10percent = (lo_volts * 0.10);
+	float lo_volt_50percent = (lo_volts * 0.50);
+	float lo_volt_25percent = (lo_volts * 0.25);
 	float lo_volt_15percent = (lo_volts * 0.15);
 
 	/* Make sure limits are wide enough for both to and from voltages */
@@ -198,7 +200,7 @@ static s32 setup_vid_volts(float to_volts)
 	val = convert2linearformat((hi_volts + hi_volt_15percent), exponent);
 	i2c_write(addr, VOUT_OV_FAULT_LIMIT, 1, (u8*)&val, 2);
 
-	val = convert2linearformat((lo_volts - lo_volt_15percent), exponent);
+	val = convert2linearformat((lo_volts - lo_volt_50percent), exponent);
 	i2c_write(addr, VOUT_UV_FAULT_LIMIT, 1, (u8*)&val, 2);
 
 	mdelay(5);
