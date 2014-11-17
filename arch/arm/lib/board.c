@@ -68,6 +68,10 @@ extern int  AT91F_DataflashInit(void);
 extern void dataflash_print_info(void);
 #endif
 
+#ifdef CONFIG_D4400
+extern int D4400_QueryBootFlashTypeNOR(void);
+#endif
+
 #if defined(CONFIG_HARD_I2C) || \
     defined(CONFIG_SOFT_I2C)
 #include <i2c.h>
@@ -563,6 +567,11 @@ void board_init_r(gd_t *id, ulong dest_addr)
 #endif
 	power_init_board();
 
+#ifdef CONFIG_D4400
+   if (D4400_QueryBootFlashTypeNOR())
+   {   /* Config only if mem type setting is NOR flash. */
+#endif
+
 #if !defined(CONFIG_SYS_NO_FLASH)
 	puts("Flash: ");
 
@@ -588,6 +597,9 @@ void board_init_r(gd_t *id, ulong dest_addr)
 		puts(failed);
 		hang();
 	}
+#endif
+#ifdef CONFIG_D4400
+  }
 #endif
 
 #if defined(CONFIG_CMD_NAND)

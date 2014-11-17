@@ -32,6 +32,23 @@
 #include "sha256.h"
 #include "d4400image.h"
 
+
+#ifdef CONFIG_BOOT_FROM	
+	#if CONFIG_BOOT_FROM == BOOT_FROM_NOR_FLASH
+		#define IVT_OFFSET 	IVT_OFFSET_NOR
+	#elif CONFIG_BOOT_FROM == BOOT_FROM_ETHERNET
+		#define IVT_OFFSET 	IVT_OFFSET_IPC
+	#elif CONFIG_BOOT_FROM == BOOT_FROM_SERIAL
+		#define IVT_OFFSET 	IVT_OFFSET_SDP
+	#elif CONFIG_BOOT_FROM == BOOT_FROM_QSPI_FLASH
+		#define IVT_OFFSET 	IVT_OFFSET_QSPI
+	#else
+		#error CONFIG_BOOT_FROM has an undefined value!
+	#endif
+#else
+#error CONFIG_BOOT_FROM is undefined!
+#endif
+
 int main(int argc, char **argv)
 {
 	unsigned char output[SHA256_SUM_LEN];
@@ -77,17 +94,20 @@ int main(int argc, char **argv)
 		}
 
 		/* create a copy, so we can blank out the sha256 sum */
-		data = (unsigned char *)malloc(IVT_OFFSET_NOR +
+		data = (unsigned char *)malloc(IVT_OFFSET +
 				len + SHA256_SUM_LEN);
-		memset(data, 0xff, (IVT_OFFSET_NOR + len + SHA256_SUM_LEN));
-		memcpy((data + IVT_OFFSET_NOR), ptr, len);
-		ptroff = &data[len + IVT_OFFSET_NOR];
+		memset(data, 0xff, (IVT_OFFSET + len + SHA256_SUM_LEN));
+		memcpy((data + IVT_OFFSET), ptr, len);
+		ptroff = &data[len + IVT_OFFSET];
 		for (i = 0; i < SHA256_SUM_LEN; i++)
 			ptroff[i] = 0;
 
-		sha256_csum_wd((unsigned char *)data, (len + IVT_OFFSET_NOR),
+		sha256_csum_wd((unsigned char *)data, (len + IVT_OFFSET),
 			       (unsigned char *)output, CHUNKSZ_SHA256);
-		printf("U-Boot sum:\n");
+
+		printf("\nSHA256 generation\n");
+		printf("Offset padding : %i\n", IVT_OFFSET);
+		printf("U-Boot sum     :\n");
 		for (i = 0; i < 32; i++)
 			printf("%02X ", output[i]);
 
@@ -98,7 +118,7 @@ int main(int argc, char **argv)
 			ptroff[i] = output[i];
 
 		printf("\n");
-		if (fwrite((data + IVT_OFFSET_NOR), 1, (len + SHA256_SUM_LEN),
+		if (fwrite((data + IVT_OFFSET), 1, (len + SHA256_SUM_LEN),
 			   ifd_secure) != (len + SHA256_SUM_LEN)) {
 			fprintf(stderr, "%s: Can't write  %s\n",
 				cmdname, strerror(errno));

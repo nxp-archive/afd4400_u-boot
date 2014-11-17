@@ -30,21 +30,10 @@
  * Supported commands for configuration file
  */
 static table_entry_t d4400_image_cmds[] = {
-	{CMD_BOOT_FROM,         "BOOT_FROM",            "boot command",	  },
 	{CMD_DATA,              "DATA",                 "Reg Write Data", },
 	{-1,                    "",                     "",	          },
 };
 
-/*
- * Supported Boot options for configuration file
- * this is needed to set the correct flash offset
- */
-static table_entry_t d4400_image_bootops[] = {
-	{IVT_OFFSET_NOR,	"nor",	"Parallel NOR Flash via weim", },
-	{IVT_OFFSET_IPC,	"eth",	"IPC via ethernet", },
-	{IVT_OFFSET_SDP,	"sdp",	"SDP via uart", },
-	{-1,			"",	"Invalid", },
-};
 /*
  * D4400IMAGE version definition for D4400 chips
  */
@@ -180,17 +169,31 @@ static void set_d4400_hdr(struct d4400_header *d4400_hdr, uint32_t dcd_len,
 		offsetof(struct boot_header, boot_data);
 
 	bhdr->boot_data.start = ivthdr->self - d4400_hdr->flash_offset;
+
+	/* Do not need to add size of header (sizeof(struct d4400_header))
+	 * as it was already included in the size of sbuf->st_size.
+	 */
 	bhdr->boot_data.size = sbuf->st_size +
-		d4400_hdr->flash_offset +
-		sizeof(struct d4400_header);
+		d4400_hdr->flash_offset + 
+#ifdef CONFIG_D4400_UBOOT_VALIDATION_SHA256
+		SHA256_BYTE_SIZE;
+#else
+		0;
+#endif
+
 #ifdef CONFIG_D4400_UBOOT_VALIDATION_SHA256
 	ivthdr->unified_image = ivthdr->self + sbuf->st_size;
 #else
 	ivthdr->unified_image = 0;
 #endif
+
+	/* Include pointer to 2nd image only if hash validation
+	 * is enabled because Boot ROM only loads the 2nd image
+         * if hash check has failed on the 1st image.
+         */
 #if defined(CONFIG_D4400_UBOOT_VALIDATION_SHA256) && \
 	defined(CONFIG_D4400_UBOOT_SECONDARY_IMAGE)
-	ivthdr->secondary_image = SECONDARY_IMAGE_OFFSET_NOR;
+	ivthdr->secondary_image = SECONDARY_IMAGE_OFFSET;
 #else
 	ivthdr->secondary_image = 0;
 #endif
@@ -213,13 +216,15 @@ static void print_hdr(struct d4400_header *d4400_hdr)
 	}
 	ver = detect_d4400_image_version(d4400_hdr);
 
+	printf("\n");
 	printf("Image Type:   Freescale D4400 Boot Image\n");
-	printf("Image Ver:    %x", ver);
+	printf("Image Ver:    0x%x", ver);
 	printf("%s\n", get_table_entry_name(d4400_image_versions, NULL, ver));
 	printf("Data Size:    ");
 	genimg_print_size(bhdr->boot_data.size);
-	printf("Load Address: %08x\n", (uint32_t)ivthdr->boot_data_ptr);
-	printf("Entry Point:  %08x\n", (uint32_t)ivthdr->entry);
+	printf("Load Address: 0x%08x\n", (uint32_t)ivthdr->boot_data_ptr);
+	printf("Entry Point:  0x%08x\n", (uint32_t)ivthdr->entry);
+	printf("Offset:       0x%08x\n", (uint32_t)d4400_hdr->flash_offset);
 }
 
 static void parse_cfg_cmd(struct d4400_header *d4400_hdr, int32_t cmd,
@@ -238,18 +243,7 @@ static void parse_cfg_cmd(struct d4400_header *d4400_hdr, int32_t cmd,
 		}
 		cmd_ver_first = 1;
 		break;
-	case CMD_BOOT_FROM:
-		d4400_hdr->flash_offset = get_table_entry_id
-			(d4400_image_bootops, "d4400image boot option", token);
-		if (d4400_hdr->flash_offset == -1) {
-			fprintf(stderr,
-				"Error: %s[%d] -Invalid boot device (%s)\n",
-				name, lineno, token);
-				exit(EXIT_FAILURE);
-		}
-		if (unlikely(cmd_ver_first != 1))
-			cmd_ver_first = 0;
-		break;
+
 	case CMD_DATA:
 		value = get_cfg_value(token, name, lineno);
 		set_dcd_val(d4400_hdr, name, lineno, fld, value, dcd_len);
@@ -275,6 +269,10 @@ static void parse_cfg_fld(struct d4400_header *d4400_hdr, int32_t *cmd,
 			exit(EXIT_FAILURE);
 		}
 		break;
+
+	/* For DATA command, parameter is reg size.
+	 * For BOOT_FROM command, parameter is boot target (nor, qspi, eth, sdp) 
+	 */
 	case CFG_REG_SIZE:
 		parse_cfg_cmd(d4400_hdr, *cmd, token, name, lineno, fld,
 			      *dcd_len);
@@ -337,6 +335,21 @@ static uint32_t parse_cfg_file(struct d4400_header *d4400_hdr, char *name)
 		}
 	}
 
+#ifdef CONFIG_BOOT_FROM	
+	#if CONFIG_BOOT_FROM == BOOT_FROM_NOR_FLASH
+		d4400_hdr->flash_offset = IVT_OFFSET_NOR;
+	#elif CONFIG_BOOT_FROM == BOOT_FROM_ETHERNET
+		d4400_hdr->flash_offset = IVT_OFFSET_IPC;
+	#elif CONFIG_BOOT_FROM == BOOT_FROM_SERIAL
+		d4400_hdr->flash_offset = IVT_OFFSET_SDP;
+	#elif CONFIG_BOOT_FROM == BOOT_FROM_QSPI_FLASH
+		d4400_hdr->flash_offset = IVT_OFFSET_QSPI;
+	#else
+		#error CONFIG_BOOT_FROM has an undefined value!
+	#endif
+#else
+#error CONFIG_BOOT_FROM is undefined!
+#endif
 	set_dcd_rst(d4400_hdr, dcd_len, name, lineno);
 	fclose(fd);
 

@@ -102,6 +102,7 @@ enum mxc_clock {
 	MXC_BISR_CLK,
 	MXC_MMDC_CLK,
 	MXC_SGMII_PHY_REF_CLK,
+	MXC_QSPI_CLK,
 };
 
 unsigned int d4400_get_clock(enum mxc_clock clk, u32 port);

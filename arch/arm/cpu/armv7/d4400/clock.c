@@ -868,6 +868,8 @@ unsigned int d4400_get_clock(enum mxc_clock clk,
 		return get_tbgen_clk();
 	case MXC_TBGEN_DEV_CLK:
 		return get_tbgen_dev_clk();
+	case MXC_QSPI_CLK:
+		return get_ahb_clk(); /* QSPI uses AHB clock */
 	default:
 		printf("Error: Invalid clk argument passed %d\n", clk);
 		return 0;

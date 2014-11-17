@@ -41,6 +41,26 @@
 #define CONFIG_D4400_UBOOT_VALIDATION_SHA256
 #define CONFIG_D4400_UBOOT_SECONDARY_IMAGE
 
+/* 
+ * Boot from configuration.  These settings affect the mkimage and ubsha256
+ * post build tools.
+ */
+#define BOOT_FROM_NOR_FLASH	1
+#define BOOT_FROM_ETHERNET	2
+#define BOOT_FROM_SERIAL	3
+#define BOOT_FROM_QSPI_FLASH	4
+#define CONFIG_BOOT_FROM	BOOT_FROM_NOR_FLASH
+
+/* Secondary image need to place in NOR flash at offset 0xc0000
+ * For NOR flash, the header of the secondary image start at
+ * offset 0xc1000 (initial 4k need to spare).  For QSPI flash,
+ * the secondary header starts at 0xc0000.
+ */
+#if defined(CONFIG_D4400_UBOOT_VALIDATION_SHA256) && \
+	defined(CONFIG_D4400_UBOOT_SECONDARY_IMAGE)
+#define SECONDARY_IMAGE_OFFSET	0xc0000
+#endif
+
 #define CONFIG_CMD_EEPROM
 #define CONFIG_SYS_I2C_EEPROM_ADDR              0x54
 #define CONFIG_SYS_EEPROM_PAGE_WRITE_BITS       4
@@ -59,14 +79,7 @@
 #define CONFIG_SYS_I2C_RTC_ADDR         0x68
 #define CONFIG_SYS_RTC_BUS_NUM          9
 
-/* Secondary image need to place in NOR flash at offset 0xc0000*/
-/* Header of the secondary image start at offset 0xc1000*/
-/* Initial 4k need to spare */
-#if defined(CONFIG_D4400_UBOOT_VALIDATION_SHA256) && \
-	defined(CONFIG_D4400_UBOOT_SECONDARY_IMAGE)
-#define SECONDARY_IMAGE_OFFSET_NOR 0xc0000
-#endif
-
+/* UART configuration */
 #define CONFIG_D4400_UART
 #define CONFIG_D4400_UART_PORT		4
 #define CONFIG_D4400_UART_BASE		UART4_BASE_ADDR
@@ -279,5 +292,14 @@
 #define CONFIG_DEFAULT_SPI_BUS          0
 #define CONFIG_DEFAULT_SPI_MODE         (SPI_MODE_0)
 #define MXC_ECSPI_SEPARATE_CLKS
+
+/* QSPI Flash */
+#define CONFIG_FSL_D4400_QSPI		/* 32-bit words are reversed for r/w op.
+					   See mxc_spi.c _qspi_xfer_write() and
+					  _qspi_xfer_read() functions.
+					*/
+#define CONFIG_QSPI_FLASH_SPANSION
+#define CONFIG_QSPI_FLASH_SPEED_HZ	18000000 /* Spi clock, 50MHz max */
+#define CONFIG_QSPI_QUAD_ENABLE		/* Enable qspi to do quad transfer. */
 
 #endif	/* __CONFIG_H */

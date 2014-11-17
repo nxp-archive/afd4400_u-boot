@@ -231,7 +231,7 @@ struct lmb;
 #define IH_TYPE_AISIMAGE	13	/* TI Davinci AIS Image		*/
 #define IH_TYPE_KERNEL_NOLOAD	14	/* OS Kernel Image, can run from any load address */
 #define IH_TYPE_PBLIMAGE	15	/* Freescale PBL Boot Image	*/
-#define IH_TYPE_D4400IMAGE	16	/* Freescale D4400Boot Image    */
+#define IH_TYPE_D4400IMAGE 	16	/* Freescale D4400Boot Image, NOR and QSPI Flash  */
 
 /*
  * Compression Types

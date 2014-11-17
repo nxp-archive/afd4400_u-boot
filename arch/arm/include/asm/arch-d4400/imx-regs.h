@@ -106,6 +106,7 @@
 #define I2C10_BASE_ADDR		(AIPS2_OFF_BASE_ADDR + 0x70000)
 #define I2C11_BASE_ADDR		(AIPS2_OFF_BASE_ADDR + 0x74000)
 #define IIM_BASE_ADDR		(AIPS2_OFF_BASE_ADDR + 0x78000)
+#define QSPI_BASE_ADDR		(AIPS3_BASE_ADDR + 0x0A8000)
 
 #define AIPS3_ON_BASE_ADDR	(ATZ3_BASE_ADDR)
 #define AIPS3_OFF_BASE_ADDR	(ATZ3_BASE_ADDR + 0x80000)
@@ -148,6 +149,256 @@
 #define GCR0_DDR_PLL_MASK       0x3
 
 
+#define SRC_SBMR_REG			(SRC_BASE_ADDR + 0x00)
+#define SRC_SBMR_BMOD_OFFSET		0
+#define SRC_SBMR_BMOD_MASK		(0x3 << SRC_SBMR_BMOD_OFFSET)
+#define SRC_SBMR_SER_DL_SEL_OFFSET	3
+#define SRC_SBMR_SER_DL_SEL_MASK	(1 << SRC_SBMR_SER_DL_SEL_OFFSET)
+#define SRC_SBMR_MEM_TYPE_OFFSET	4
+#define SRC_SBMR_MEM_TYPE_MASK		(1 << SRC_SBMR_MEM_TYPE_OFFSET)
+#define SRC_SBMR_MEM_BUS_WIDTH_OFFSET	5
+#define SRC_SBMR_MEM_BUS_WIDTH_MASK	(0x3 << SRC_SBMR_MEM_BUS_WIDTH_OFFSET)
+#define SRC_SBMR_ETH_MODE_OFFSET	10
+#define SRC_SBMR_ETH_MODE_MASK		(0x3 << SRC_SBMR_ETH_MODE_OFFSET)
+#define SRC_SBMR_BIV_EN_OFFSET		12
+#define SRC_SBMR_BIV_EN_MASK		(1 << SRC_SBMR_BIV_EN_OFFSET)
+#define SRC_SBMR_SPI_FLASH_VENID_OFFSET	13
+#define SRC_SBMR_SPI_FLASH_VENID_MASK	(0x3 << SRC_SBMR_SPI_FLASH_VENID_OFFSET)
+#define SRC_SBMR_REF_FREQ_OFFSET	15
+#define SRC_SBMR_REF_FREQ_OFFSET_MASK	(1 << SRC_SBMR_REF_FREQ_OFFSET)
+
+/* Check memory type of flash boot: 
+ *  FLASH_BOOT_MEM_TYPE_NOR 	- NOR flash
+ *  FLASH_BOOT_MEM_TYPE_QSPI 	- qspi flash 
+ */
+#define FLASH_BOOT_MEM_TYPE_NOR		0
+#define FLASH_BOOT_MEM_TYPE_QSPI	1
+#define QUERY_FLASH_BOOT_MEM_TYPE()\
+	(\
+		 ( (*(volatile u32 *)SRC_SBMR_REG & SRC_SBMR_MEM_TYPE_MASK) >> SRC_SBMR_MEM_TYPE_OFFSET)\
+	)
+
+/* Check qspi flash type: 
+ *  QSPI_FLASH_TYPE_WINBOND - Winbond
+ *  QSPI_FLASH_TYPE_SPANSION- Spansion
+ *  QSPI_FLASH_TYPE_MACRONIX- Macronix
+ *  QSPI_FLASH_TYPE_NUMONYX - Numonyx
+ */
+#define QSPI_FLASH_TYPE_WINBOND		0
+#define QSPI_FLASH_TYPE_SPANSION	1
+#define QSPI_FLASH_TYPE_MACRONIX	2
+#define QSPI_FLASH_TYPE_NUMONYX		3
+#define QUERY_QSPI_FLASH_TYPE()\
+	(\
+		 ( (*(volatile u32 *)SRC_SBMR_REG & SRC_SBMR_SPI_FLASH_VENID_MASK) >> SRC_SBMR_SPI_FLASH_VENID_OFFSET)\
+	)
+
+/* Check boot mode: 
+ *  BOOT_MODE_FLASH 	- flash (NOR/Qspi)
+ *  BOOT_MODE_IPC 		- IPC boot
+ *  BOOT_MODE_EXT_DIRECT 	- External direct boot
+ *  BOOT_MODE_TEST_MODE 	- Test mode 
+ */
+#define BOOT_MODE_FLASH		0
+#define BOOT_MODE_IPC		1
+#define BOOT_MODE_EXT_DIRECT	2
+#define BOOT_MODE_TEST_MODE	3
+#define QUERY_BOOT_MODE()\
+	(\
+		 ( (*(volatile u32 *)SRC_SBMR_REG & SRC_SBMR_BMOD_MASK) >> SRC_SBMR_BMOD_OFFSET)\
+	)
+
+/*
+ *  QSPI register definitions
+ */
+#define QSPI_MCR_REG		          (QSPI_BASE_ADDR + 0x000)
+#define QSPI_LCR_REG		          (QSPI_BASE_ADDR + 0x004)
+#define QSPI_SFAR_REG		          (QSPI_BASE_ADDR + 0x100)
+#define QSPI_ICR_REG		          (QSPI_BASE_ADDR + 0x104)
+#define QSPI_SMPR_REG		          (QSPI_BASE_ADDR + 0x108)
+#define QSPI_RBSR_REG		          (QSPI_BASE_ADDR + 0x10C)
+#define QSPI_RBCT_REG		          (QSPI_BASE_ADDR + 0x110)
+#define QSPI_TBSR_REG		          (QSPI_BASE_ADDR + 0x150)
+#define QSPI_TBDR_REG		          (QSPI_BASE_ADDR + 0x154) /* AFD4400 rev1 has 16 32-bit deep TX buffer */
+#define QSPI_ACR_REG		          (QSPI_BASE_ADDR + 0x158)
+#define QSPI_SR_REG		          (QSPI_BASE_ADDR + 0x15C)
+#define QSPI_FR_REG		          (QSPI_BASE_ADDR + 0x160)
+#define QSPI_RSER_REG		          (QSPI_BASE_ADDR + 0x164)
+#define QSPI_RXDATA_BASE_REG		  (QSPI_BASE_ADDR + 0x200)
+#define QSPI_RXDATA_RBDR0		  (QSPI_BASE_ADDR + 0x200)
+#define QSPI_RXDATA_RBDR1		  (QSPI_BASE_ADDR + 0x204)
+#define QSPI_RXDATA_RBDR2		  (QSPI_BASE_ADDR + 0x208)
+#define QSPI_RXDATA_RBDR3		  (QSPI_BASE_ADDR + 0x20C)
+#define QSPI_RXDATA_RBDR4		  (QSPI_BASE_ADDR + 0x210)
+#define QSPI_RXDATA_RBDR5		  (QSPI_BASE_ADDR + 0x214)
+#define QSPI_RXDATA_RBDR6		  (QSPI_BASE_ADDR + 0x218)
+#define QSPI_RXDATA_RBDR7		  (QSPI_BASE_ADDR + 0x21C)
+#define QSPI_RXDATA_RBDR8		  (QSPI_BASE_ADDR + 0x220)
+#define QSPI_RXDATA_RBDR9		  (QSPI_BASE_ADDR + 0x224)
+#define QSPI_RXDATA_RBDR10		  (QSPI_BASE_ADDR + 0x228)
+#define QSPI_RXDATA_RBDR11		  (QSPI_BASE_ADDR + 0x22C)
+#define QSPI_RXDATA_RBDR12		  (QSPI_BASE_ADDR + 0x230)
+#define QSPI_RXDATA_RBDR13		  (QSPI_BASE_ADDR + 0x234)
+#define QSPI_RXDATA_RBDR14		  (QSPI_BASE_ADDR + 0x238)
+#define QSPI_RXDATA_RBDR15		  (QSPI_BASE_ADDR + 0x23C)
+#define QSPI_RXDATA_RBDR16		  (QSPI_BASE_ADDR + 0x240)
+#define QSPI_RXDATA_RBDR17		  (QSPI_BASE_ADDR + 0x244)
+#define QSPI_RXDATA_RBDR18		  (QSPI_BASE_ADDR + 0x248)
+#define QSPI_RXDATA_RBDR19		  (QSPI_BASE_ADDR + 0x24C)
+#define QSPI_RXDATA_RBDR20		  (QSPI_BASE_ADDR + 0x250)
+#define QSPI_RXDATA_RBDR21		  (QSPI_BASE_ADDR + 0x254)
+#define QSPI_RXDATA_RBDR22		  (QSPI_BASE_ADDR + 0x258)
+#define QSPI_RXDATA_RBDR23		  (QSPI_BASE_ADDR + 0x25C)
+#define QSPI_RXDATA_RBDR24		  (QSPI_BASE_ADDR + 0x260)
+#define QSPI_RXDATA_RBDR25		  (QSPI_BASE_ADDR + 0x264)
+#define QSPI_RXDATA_RBDR26		  (QSPI_BASE_ADDR + 0x268)
+#define QSPI_RXDATA_RBDR27		  (QSPI_BASE_ADDR + 0x26C)
+#define QSPI_RXDATA_RBDR28		  (QSPI_BASE_ADDR + 0x270)
+#define QSPI_RXDATA_RBDR29		  (QSPI_BASE_ADDR + 0x274)
+#define QSPI_RXDATA_RBDR30		  (QSPI_BASE_ADDR + 0x278)
+#define QSPI_RXDATA_RBDR31		  (QSPI_BASE_ADDR + 0x27C)
+
+#define QSPI_MCR_EXT_ADD_OFFSET			0
+#define QSPI_MCR_EXT_ADD_MASK			(1 << QSPI_MCR_EXT_ADD_OFFSET)
+#define QSPI_MCR_VMID_OFFSET			3
+#define QSPI_MCR_VMID_MASK			(0xF << QSPI_MCR_VMID_OFFSET)
+#define QSPI_MCR_CLR_RXF_OFFSET			10
+#define QSPI_MCR_CLR_RXF_MASK			(1 << QSPI_MCR_CLR_RXF_OFFSET)
+#define QSPI_MCR_CLR_TXF_OFFSET			11
+#define QSPI_MCR_CLR_TXF_MASK			(1 << QSPI_MCR_CLR_TXF_OFFSET)
+#define QSPI_MCR_MDIS_OFFSET			14
+#define QSPI_MCR_MDIS_MASK			(1 << QSPI_MCR_MDIS_OFFSET)
+#define QSPI_MCR_ISD2FA_OFFSET			16
+#define QSPI_MCR_ISD2FA_MASK			(1 << QSPI_MCR_ISD2FA_OFFSET)
+#define QSPI_MCR_ISD3FA_OFFSET			17
+#define QSPI_MCR_ISD3FA_MASK			(1 << QSPI_MCR_ISD3FA_OFFSET)
+#define QSPI_MCR_ISD2FB_OFFSET			18
+#define QSPI_MCR_ISD2FB_MASK			(1 << QSPI_MCR_ISD2FB_OFFSET)
+#define QSPI_MCR_ISD3FB_OFFSET			19
+#define QSPI_MCR_ISD3FB_MASK			(1 << QSPI_MCR_ISD3FB_OFFSET)
+#define QSPI_MCR_SCLKCFG_OFFSET			24
+#define QSPI_MCR_SCLKCFG_MASK			(0xFF << QSPI_MCR_SCLKCFG_OFFSET)
+
+#define QSPI_ICR_IC_OFFSET			0
+#define QSPI_ICR_ICO_OFFSET			16  /* Errata in AFD4400 ref manual which says 8. */
+
+#define QSPI_TBSR_TRBFL_OFFSET			8
+#define QSPI_TBSR_TRBFL_MASK			(0x0F << QSPI_TBSR_TRBFL_OFFSET)
+#define QSPI_TBSR_TRCTR_OFFSET			16
+#define QSPI_TBSR_TRCTR_MASK			(0xFF << QSPI_TBSR_TRCTR_OFFSET)
+
+#define QSPI_SMPR_HSENA_OFFSET			0
+#define QSPI_SMPR_HSENA_MASK			(1 << QSPI_SMPR_HSENA_OFFSET)
+#define QSPI_SMPR_HSPHS_OFFSET			1
+#define QSPI_SMPR_HSPHS_MASK			(1 << QSPI_SMPR_HSDLY_OFFSET)
+#define QSPI_SMPR_HSDLY_OFFSET			2
+#define QSPI_SMPR_HSDLY_MASK			(1 << QSPI_SMPR_HSDLY_OFFSET)
+#define QSPI_SMPR_FSPHS_OFFSET			5
+#define QSPI_SMPR_FSPHS_MASK			(1 << QSPI_SMPR_FSPHS_OFFSET)
+#define QSPI_SMPR_FSDLY_OFFSET			6
+#define QSPI_SMPR_FSDLY_MASK			(1 << QSPI_SMPR_FSDLY_OFFSET)
+
+#define QSPI_SR_BUSY_OFFSET			0
+#define QSPI_SR_BUSY_MASK			(1 << QSPI_SR_BUSY_OFFSET)
+#define QSPI_SR_IP_ACC_OFFSET			1
+#define QSPI_SR_IP_ACC_MASK			(1 << QSPI_SR_IP_ACC_OFFSET)
+#define QSPI_SR_AHB_ACC_OFFSET			2
+#define QSPI_SR_AHB_ACC_MASK			(1 << QSPI_SR_ABH_ACC_OFFSET)
+#define QSPI_SR_CNTMDFA_OFFSET			3
+#define QSPI_SR_CNTMDFA_MASK			(1 << QSPI_SR_CNTMDFA_OFFSET)
+#define QSPI_SR_AHBGNT_OFFSET			5
+#define QSPI_SR_AHBGNT_MASK			(1 << QSPI_SR_AHBGNT_OFFSET)
+#define QSPI_SR_AHBTRN_OFFSET			6
+#define QSPI_SR_AHBTRN_MASK			(1 << QSPI_SR_AHBTRN_OFFSET)
+#define QSPI_SR_AHBNE_OFFSET			8
+#define QSPI_SR_AHBNE_MASK			(1 << QSPI_SR_AHBNE_OFFSET)
+#define QSPI_SR_AHBFULL_OFFSET			11
+#define QSPI_SR_AHBFULL_MASK			(1 << QSPI_SR_AHBFULL_OFFSET)
+#define QSPI_SR_RXWE_OFFSET			16
+#define QSPI_SR_RXWE_MASK			(1 << QSPI_SR_RXWE_OFFSET)
+#define QSPI_SR_RXFULL_OFFSET			19
+#define QSPI_SR_RXFULL_MASK			(1 << QSPI_SR_RXFULL_OFFSET)
+#define QSPI_SR_RXDMA_OFFSET			23
+#define QSPI_SR_RXDMA_MASK			(1 << QSPI_SR_RXDMA_OFFSET)
+#define QSPI_SR_TXNE_OFFSET			24
+#define QSPI_SR_TXNE_MASK			(1 << QSPI_SR_TXNE_OFFSET)
+#define QSPI_SR_TXFULL_OFFSET			27
+#define QSPI_SR_TXFULL_MASK			(1 << QSPI_SR_TXFULL_OFFSET)
+
+#define	QSPI_MAX_TX_BYTES			64	/* 16 32-bit words */
+#define QSPI_MAX_RX_BYTES			128	/* 32 32-bit words */
+
+/* Define used in spi driver to indicate if operation is read or write.
+ * This is needed since qspi is specialized for memory interface and
+ * performs only read or write operation, not both as typical of spi, for
+ * each transaction. Thus, the mode parameter is different for qspi.
+ */
+#define QSPI_MODE_OFFSET			0
+#define QSPI_MODE_MASK				(0x03 << QSPI_MODE_OFFSET) 
+#define QSPI_MODE_READ				(0x00 << QSPI_MODE_OFFSET)
+#define QSPI_MODE_WRITE				(0x01 << QSPI_MODE_OFFSET)
+#define QSPI_MODE_ERASE_SECTOR			(0x02 << QSPI_MODE_OFFSET)
+#define QSPI_MODE_ERASE_ALL			(0x03 << QSPI_MODE_OFFSET)
+
+#define QSPI_WAIT_WHILE_BUSY() \
+	{\
+		while( *((volatile u32*)QSPI_SR_REG) & QSPI_SR_BUSY_MASK ) {}\
+	}
+#define QSPI_CLEAR_RX_BUFPTR() \
+	{\
+		*((volatile u32*)QSPI_MCR_REG) |= QSPI_MCR_CLR_RXF_MASK;\
+	}
+#define QSPI_CLEAR_TX_BUFPTR() \
+	{\
+		*((volatile u32*)QSPI_MCR_REG) |= QSPI_MCR_CLR_TXF_MASK;\
+	}
+#define QSPI_CLEAR_RX_TX_BUFPTR() \
+	{\
+		*((volatile u32*)QSPI_MCR_REG) |= (QSPI_MCR_CLR_RXF_MASK | QSPI_MCR_CLR_TXF_MASK);\
+	}
+
+/* Addressing mode
+ * addr_mode: QSPI_ADDR_MODE_24BIT-24bit, QSPI_ADDR_MODE_32BIT-32bit
+ */
+#define QSPI_ADDR_MODE_24BIT	0
+#define QSPI_ADDR_MODE_32BIT	1
+#define QSPI_SET_ADDR_MODE(addr_mode) \
+	{\
+		*((volatile u32*)QSPI_MCR_REG) |= QSPI_MCR_MDIS_MASK;\
+		if (addr_mode == 0)\
+			*((volatile u32*)QSPI_MCR_REG) &= ~QSPI_MCR_EXT_ADD_MASK;\
+		else\
+			*((volatile u32*)QSPI_MCR_REG) |= QSPI_MCR_EXT_ADD_MASK;\
+		*((volatile u32*)QSPI_MCR_REG) &= ~QSPI_MCR_MDIS_MASK;\
+	}
+
+/* The qspi register addresses are broken up hence padding is required. */
+#if !(defined(__KERNEL_STRICT_NAMES) || defined(__ASSEMBLY__))
+#include <asm/types.h>
+
+/* QSPI registers */
+struct qspi_regs {
+	u32	mcr;  				/* Module configuration */
+	u32	lcr;				/* Latency configuration */	
+	u8	reserved_1[248];		/* Padding */
+	u32	sfar;  				/* Module configuration */
+	u32	icr;				/* Instruction code */
+	u32	smpr;				/* Sampling */
+	u32	rbsr;				/* RX buffer status */
+	u32	rbct;				/* RX buffer control */
+	u8	reserved_2[60];			/* Padding */
+	u32	tbsr;				/* TX buffer status */
+	u32	tbdr;				/* TX buffer data */
+	u32	acr;				/* AMBA control */
+	u32	sr;				/* Status */
+	u32	fr;				/* Flag */
+	u32	rser;				/* Interrupt and DMA request select/enable */
+	u8	reserved_3[152];		/* Padding */
+	u32	rbdr_base;			/* RX buffer */
+};
+
+#endif /* __ASSEMBLER__*/
+
 #define FVDD_VSEL_REG	(IOMUXC_BASE_ADDR + 0x700)
 #define JVDD_VSEL_REG	(IOMUXC_BASE_ADDR + 0x704)
 #define GVDD1_VSEL_REG	(IOMUXC_BASE_ADDR + 0x708)
@@ -167,7 +418,6 @@
 
 #define BOOT_ETH_MODE_SGMII 0
 
-#define SRC_SBMR_ETH_MODE_MASK 0x0C00
 #define SRC_SBMR_ETH_MODE_SHIFT 0x0A
 
 /*

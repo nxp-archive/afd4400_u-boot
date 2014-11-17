@@ -30,15 +30,22 @@
 #define APP_CODE_BARKER	0x01020304
 
 #define CMD_DATA_STR	"DATA"
+
+/* 
+ * Flash offset location.  When programming the flash device,
+ * the boot image is programmed with the offset specified here.
+ */
 #define IVT_OFFSET_UNDEFINED	0xFFFFFFFF
 #define IVT_OFFSET_NOR	0x1000
 #define IVT_OFFSET_IPC	0x0
 #define IVT_OFFSET_SDP	0x0
+#define IVT_OFFSET_QSPI	0x0
+
+#define SHA256_BYTE_SIZE	32 /* 256bit = 32 bytes */
 
 enum d4400_image_cmd {
 	CMD_INVALID,
 	CMD_IMAGE_VERSION,
-	CMD_BOOT_FROM,
 	CMD_DATA
 };
 

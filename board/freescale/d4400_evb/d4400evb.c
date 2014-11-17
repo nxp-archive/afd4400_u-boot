@@ -41,6 +41,9 @@
 #include <libfdt.h>
 #endif
 
+#ifdef CONFIG_QSPI_FLASH_SPANSION
+#include <asm/arch/qspi_spansion_s25l.h>
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -470,6 +473,159 @@ int board_eth_init(bd_t *bis)
 }
 #endif
 
+
+#ifdef CONFIG_FSL_D4400_QSPI
+
+#define QSPI_PAD_CTRL_OUT   (PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PUS_100K_DOWN | PAD_CTL_DSL_3)
+#define QSPI_PAD_CTRL_IO    (PAD_CTL_HYS | PAD_CTL_ODE | PAD_CTL_DSL_3)
+
+iomux_cfg_t qspi_pads[] = {
+	D4400_PAD_FLASH_A21_QSPI_CK     | MUX_PAD_CTRL(QSPI_PAD_CTRL_OUT),
+	D4400_PAD_FLASH_A22_QSPI_IO_0   | MUX_PAD_CTRL(QSPI_PAD_CTRL_OUT),
+	D4400_PAD_FLASH_A23_QSPI_IO_1   | MUX_PAD_CTRL(QSPI_PAD_CTRL_IO),
+	D4400_PAD_FLASH_A24_QSPI_IO_2   | MUX_PAD_CTRL(QSPI_PAD_CTRL_IO),
+	D4400_PAD_FLASH_A25_QSPI_IO_3   | MUX_PAD_CTRL(QSPI_PAD_CTRL_IO),
+	D4400_PAD_FLASH_CS2_B_QSPI_CS_B | MUX_PAD_CTRL(QSPI_PAD_CTRL_OUT)
+};
+
+void setup_qspi(void)
+{
+	/* Setup pins. */
+	d4400_iomux_setup_multiple_pads(qspi_pads, ARRAY_SIZE(qspi_pads));
+
+	struct d4400_ccm_reg *ccm_regs =
+		(struct d4400_ccm_reg *)CCM_BASE_ADDR;
+	volatile struct qspi_regs *qspi_reg = (volatile struct qspi_regs *)QSPI_BASE_ADDR;
+
+	/* Configure QSPI clock to default */
+	unsigned int ccsr = ccm_regs->ccsr;
+	ccsr &= ~D4400_CCM_CCSR_ACC_QSPI_MASK;
+	ccm_regs->ccsr = ccsr;
+
+	/* Configure QSPI default clocks to be enabled */
+	unsigned int ccgcr1 = ccm_regs->ccgcr1;
+	ccgcr1 |= (	D4400_CCM_CCGCR1_SFIF_EN_MASK | 
+			D4400_CCM_CCGCR1_SFIF_B_EN_MASK | 
+			D4400_CCM_CCGCR1_SFPAD_FA_EN_MASK);
+	ccm_regs->ccgcr1 = ccgcr1;
+
+	/* Configure mode and clock */
+	volatile u32 val32;
+
+	/* Sampling */
+	qspi_reg->smpr = 0;
+
+	/* Set latency which is important because the Boot Rom code changes the
+	 * latency setting according to its usage when booting from qspi flash
+	 * and that setting may be incompatible with the way Uboot uses qspi.
+	 * More specifically, Boot Rom uses single i/o AMBA bus qspi access where 
+         * as Uboot driver uses quad i/o IP qspi access.  These two methods have 
+         * different latency settings.
+	 */
+	qspi_reg->lcr = 0x08;	/* Default 0x08 */
+
+	/* RX buf readout: IP bus (RBDR0 to 31 reg) */
+	qspi_reg->rbct = (1 << 8);
+
+	/* AMBA control reg (for AHB commands) */
+	qspi_reg->acr = 0x803;  /* Default = 0x803 */
+
+	val32 = qspi_reg->mcr;
+
+ 	val32 &= ~QSPI_MCR_SCLKCFG_MASK; 				/* SCLKCFG 0x00= div1 */
+ 	//val32 |= (0x04 << QSPI_MCR_SCLKCFG_OFFSET); 	/* SCLKCFG 0x04= div3, 50MHz */
+ 	val32 |= (0x0E << QSPI_MCR_SCLKCFG_OFFSET); 	/* SCLKCFG 0x0E= ~20MHz */
+	val32 |= (QSPI_MCR_CLR_RXF_MASK | QSPI_MCR_CLR_TXF_MASK); /* Clear buffers */
+
+	/* Configure flash type */
+	val32 &= ~QSPI_MCR_VMID_MASK;
+	if (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_SPANSION)
+		val32 |= (2 << 3);	/* Spansion */
+	else if (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_MACRONIX)
+		val32 |= (3 << 3);	/* Macronix */
+	else if (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_NUMONYX)
+		val32 |= (4 << 3);	/* Numonyx */
+	else /* (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_WINBOND) */
+		val32 |= (1 << 3);	/* Winbond */
+
+	/* Drive IO[3:2] low during idle */
+	val32 &= ~(QSPI_MCR_ISD2FA_MASK | QSPI_MCR_ISD3FA_MASK);
+
+
+	/* Before new settings, set MDIS = 1 to allow change. */
+	qspi_reg->mcr |= QSPI_MCR_MDIS_MASK;
+
+	/* Make new config effective */
+	qspi_reg->mcr = val32;
+
+	/* Once clock is set in MCR, set MDIS = 0 to disallow clk disable. */
+	qspi_reg->mcr &= ~QSPI_MCR_MDIS_MASK;
+
+
+	/* Set 24-bit addressing mode as default.  Qspi driver sets 32-bit
+	 * addressing if required.  See drivers/spi/mxc_spi.c.
+	 */
+	QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_24BIT);
+#ifdef CONFIG_QSPI_FLASH_SPANSION
+	QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_24BIT);
+#endif
+
+#if defined CONFIG_QSPI_FLASH_SPANSION && defined CONFIG_QSPI_QUAD_ENABLE
+	QSPI_SPANSION_FLASH_SET_QUADMODE(SPANSION_IO_MODE_QUAD);	/* Set quad mode */
+#endif
+}
+
+void qspi_test(void)
+{
+	/* Toggle IO[3:2] signals */
+
+	volatile u32 val32;
+	volatile u32 *pMCR = (volatile u32*)QSPI_MCR_REG;
+
+ 	val32 = readl(QSPI_MCR_REG);
+ 	val32 |= (1 << 14);  	// MDIS = 1 disable mode
+ 	val32 |= (0x2 << 24);  	// SCLKCFG 0x0e= div8
+	val32 |= (2 << 3); 	// 2-Spansion
+	writel(val32, QSPI_MCR_REG);
+
+	while(1)
+	{
+		/* In order to modify b[19:16] to set IOFA/B[2:3] signals hi/low, 
+		 * these steps must be followed:
+		 * 
+		 * 1) Set MCR[14] = 1  (MDIS bit)
+		 * 2) Set ISD2FA, ISD3FA, ISD2FB, ISD3FB bits, MCR[19:16].
+		 * 3) Set MCR[14] = 0 to have the drive values take effect.
+		 *
+		 * In order to change MCR[19:16] again, you must repeat the
+		 * the steps above.
+		 *
+		 * Note in AFD4400 that only ISD2/3FA signals are implemented
+		 * (one qspi module implemented) and thus only MCR[17:16] are
+		 * used. MCR[19:18] are don't cares.
+		 *
+		 */
+		*pMCR |= (1 << 14); // MDIS = 1 disable mode, allows MCR[17:16] to be modified
+		*pMCR &= ~( (1<<17) | (1<<16)  );	// Now clear IOFA bits.
+		*pMCR &= ~(1 << 14); // MDIS = 0 , MCR[17:16] value takes effect
+
+		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
+		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
+		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
+
+		*pMCR |= (1 << 14); // MDIS = 1 disable mode, allows MCR[17:16] to be modified
+		*pMCR |= ( (1<<17) | (1<<16)  );	// Now set IOFA bits.
+		*pMCR &= ~(1 << 14); // MDIS = 0 , MCR[17:16] value takes effect
+
+		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
+		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
+		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
+
+	}
+}
+
+#endif /* CONFIG_FSL_D4400_QSPI */
+
 #ifdef CONFIG_MXC_SPI
 
 #define SPI_PAD_CTRL    (PAD_CTL_HYS | PAD_CTL_PKE | PAD_CTL_PUE | \
@@ -784,7 +940,7 @@ void setup_ovdd_vsel(void)
 	}
 #endif
 
-    /* DEFAULT_JFVDD - 3.3V */
+	/* DEFAULT_JFVDD - 3.3V */
 	writel(DEFAULT_JFVDD, FVDD_VSEL_REG);
 	writel(DEFAULT_JFVDD, JVDD_VSEL_REG);
 	writel(DEFAULT_JFVDD, GVDD5_VSEL_REG);
@@ -800,13 +956,23 @@ int board_early_init_f(void)
 	setup_enet();
 #endif
 #ifdef CONFIG_CMD_WEIM_NOR
-	setup_weim_nor();
+	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
+		setup_weim_nor();
 #ifdef CONFIG_QIXIS
-	setup_weim_qixis();
+	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
+		setup_weim_qixis();
 #endif
 #endif
 #ifdef CONFIG_MXC_SPI
 	setup_iomux_spi();
+#endif
+
+#ifdef CONFIG_FSL_D4400_QSPI
+	/* Qspi setup. */
+	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_QSPI)
+	{
+		setup_qspi();
+	}
 #endif
 	return 0;
 }
@@ -815,21 +981,28 @@ int configure_vid(void);
 int board_init(void)
 {
 #if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
-	printf("QIXIS: %02x:%02x - %02x.%02x\n",
-	       readb(CONFIG_QIXIS_BASE_ADDR + 0),
-	       readb(CONFIG_QIXIS_BASE_ADDR + 1),
-	       readb(CONFIG_QIXIS_BASE_ADDR + 2),
-	       readb(CONFIG_QIXIS_BASE_ADDR + 3));
+	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
+	{
+		printf("QIXIS: %02x:%02x - %02x.%02x\n",
+		readb(CONFIG_QIXIS_BASE_ADDR + 0),
+		readb(CONFIG_QIXIS_BASE_ADDR + 1),
+		readb(CONFIG_QIXIS_BASE_ADDR + 2),
+		readb(CONFIG_QIXIS_BASE_ADDR + 3));
 
-    if (EVB_REV_A == readb(CONFIG_QIXIS_BASE_ADDR + 1)) {
-        writel(0x00000200, GCR75);
-        writel(0x00100000, GCR72);
-    }
+	    	if (EVB_REV_A == readb(CONFIG_QIXIS_BASE_ADDR + 1)) {
+	    	    writel(0x00000200, GCR75);
+	    	    writel(0x00100000, GCR72);
+	    	}
+	}
 #endif
 
 #ifdef CONFIG_OVDD_VSEL
-	setup_ovdd_vsel();
+	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
+	{
+		setup_ovdd_vsel();
+	}
 #endif
+
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 
@@ -856,3 +1029,11 @@ void ft_board_setup(void *blob, bd_t *bd)
 	ft_cpu_setup(blob, bd);
 }
 #endif
+
+int D4400_QueryBootFlashTypeNOR(void)
+{
+	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
+		return 1;
+	else
+		return 0;
+}
