@@ -25,8 +25,9 @@
 #include <command.h>
 #include <configs/d4400_evb.h>
 #include <asm/arch/imx-regs.h>
+#include "d4400evb.h"
 
-#if defined(CONFIG_ZL6105_VID)
+#if defined(CONFIG_VID)
 
 #define INVALID_VALUE   (0.0000)
 #define	MAX_VID_INDEX   (32)
@@ -82,6 +83,9 @@ static float vid2voltmap[MAX_VID_INDEX] = {
 
 //#define DEBUG
 
+#define MINIMUM_VOLTAGE       (0.89999)
+#define MAXIMUM_VOLTAGE       (1.10001)
+
 #define LINEAR_MODE           (0x00)
 
 #define OPERATION             (0x01)
@@ -102,12 +106,21 @@ static float vid2voltmap[MAX_VID_INDEX] = {
 #define OPERATION_MARGIN_LOW  (0x98)
 #define OPERATION_MARGIN_HIGH (0xA8)
 
-#define MINIMUM_VOLTAGE       (0.89999)
-#define MAXIMUM_VOLTAGE       (1.10001)
+#define IR36021_SET_BOOT_VOUT_LOOP1 (0x17)
+#define IR36021_SET_BOOT_VOUT_LOOP2 (0x18)
+#define IR36021_SET_VOUT_LOOP1      (0x6A)
+#define IR36021_SET_VOUT_LOOP2      (0x6C)
+#define IR36021_READ_VOUT_LOOP1     (0x9A)
+#define IR36021_READ_VOUT_LOOP2     (0x9B)
+#define IR36021_READ_CURRENT_LOOP1  (0x9C)
+#define IR36021_READ_CURRENT_LOOP2  (0x9D)
+#define IR36021_READ_TEMP1          (0x9E)
+#define IR36021_READ_TEMP2          (0x9F)
+#define IR36021_READ_STATUS_LOOP1   (0xA1)
+#define IR36021_READ_STATUS_LOOP2   (0xA2)
 
 /* Global functions */
 s32 configure_vid(void);
-
 
 static u16 get_efuse_vid(void)
 {
@@ -132,34 +145,120 @@ static void print_zl6105_reg_volts(u16 reg, u8 exponent)
 	printf(" => %4d mV\n", millivolts);
 }
 
-static s32 setup_vid_volts(float to_volts)
+static void dump_zl6105_regs(void)
+{
+	u16 val = 0x0000;
+	u8 exponent;
+	int addr;
+	int old_i2c_num;
+	int old_i2c_speed;
+
+	old_i2c_num = i2c_get_bus_num();
+	old_i2c_speed = i2c_get_bus_speed();
+
+	i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
+	i2c_set_bus_speed(CONFIG_ZL6105_VID_I2C_SPEED);
+
+	addr = CONFIG_ZL6105_VID_I2C_ADDR;
+
+	i2c_read(addr, VOUT_MODE, 1, (u8 *)&val, 1);
+	printf("VOUT_MODE:           %04x\n", val);
+	exponent = -(((s8)(val << 3)) >> 3);
+
+	i2c_read(addr, VOUT_MAX, 1, (u8 *)&val, 2);
+	printf("VOUT_MAX:            %04x", val);
+	print_zl6105_reg_volts(val, exponent);
+
+	i2c_read(addr, POWER_GOOD_ON, 1, (u8 *)&val, 2);
+	printf("POWER_GOOD_ON:       %04x", val);
+	print_zl6105_reg_volts(val, exponent);
+
+	i2c_read(addr, VOUT_OV_FAULT_LIMIT, 1, (u8 *)&val, 2);
+	printf("VOUT_OV_FAULT_LIMIT: %04x", val);
+	print_zl6105_reg_volts(val, exponent);
+
+	i2c_read(addr, VOUT_MARGIN_HIGH, 1, (u8 *)&val, 2);
+	printf("VOUT_MARGIN_HIGH:    %04x", val);
+	print_zl6105_reg_volts(val, exponent);
+
+	i2c_read(addr, VOUT_UV_FAULT_LIMIT, 1, (u8 *)&val, 2);
+	printf("VOUT_UV_FAULT_LIMIT: %04x", val);
+	print_zl6105_reg_volts(val, exponent);
+
+	i2c_read(addr, VOUT_MARGIN_LOW, 1, (u8 *)&val, 2);
+	printf("VOUT_MARGIN_LOW:     %04x", val);
+	print_zl6105_reg_volts(val, exponent);
+
+	val = 0x0000;
+	i2c_read(addr, OPERATION, 1, (u8 *)&val, 1);
+	printf("OPERATION:           %04x\n", val);
+
+	i2c_read(addr, USER_CONFIG, 1, (u8 *)&val, 2);
+	printf("USER_CONFIG:         %04x\n", val);
+
+	i2c_set_bus_num(old_i2c_num);
+	i2c_set_bus_speed(old_i2c_speed);
+}
+
+static void dump_ir36021_regs(void)
+{
+	u8 val;
+	int addr;
+	int old_i2c_num;
+	int old_i2c_speed;
+
+	old_i2c_num = i2c_get_bus_num();
+	old_i2c_speed = i2c_get_bus_speed();
+
+	i2c_set_bus_num(CONFIG_IR36021_VID_I2C_BUS_NUM);
+	i2c_set_bus_speed(CONFIG_IR36021_VID_I2C_SPEED);
+
+	addr = CONFIG_IR36021_VID_I2C_ADDR;
+
+	i2c_read(addr, IR36021_SET_BOOT_VOUT_LOOP1, 1, &val, 1);
+	printf("SET_BOOT_VOLTAGE: %02x\n", val);
+
+	i2c_read(addr, IR36021_SET_VOUT_LOOP1, 1, &val, 1);
+	printf("SET_VOLTAGE:      %02x\n", val);
+
+	i2c_read(addr, IR36021_READ_VOUT_LOOP1, 1, &val, 1);
+	printf("READ_VOLTAGE:     %02x\n", val);
+
+	i2c_read(addr, IR36021_READ_CURRENT_LOOP1, 1, &val, 1);
+	printf("READ_CURRENT:     %02x\n", val);
+
+	i2c_read(addr, IR36021_READ_TEMP1, 1, &val, 1);
+	printf("READ_TEMP1:       %02x\n", val);
+
+	i2c_read(addr, IR36021_READ_TEMP2, 1, &val, 1);
+	printf("READ_TEMP2:       %02x\n", val);
+
+	i2c_read(addr, IR36021_READ_STATUS_LOOP1, 1, &val, 1);
+	printf("READ_STATUS:      %02x\n", val);
+
+	i2c_set_bus_num(old_i2c_num);
+	i2c_set_bus_speed(old_i2c_speed);
+}
+
+static s32 setup_zl6105_vid_volts(float to_volts)
 {
 	u32 addr;
 	u16 val=0x0000;
 	u8 dataformat;
 	u8 exponent;
-        int old_i2c_num;
-        int old_i2c_speed;
-
-	if (to_volts > MAXIMUM_VOLTAGE || to_volts < MINIMUM_VOLTAGE) {
-		to_volts += 0.00004; // help with rounding errors
-		int volts_int = to_volts;
-		int volts_frac = (to_volts - volts_int) * 10000;
-		printf("\nVID: ERROR - requested voltage %d.%04d V is outside supported range\n",
-			volts_int, volts_frac);
-		return -1;
-	}
+	int old_i2c_num;
+	int old_i2c_speed;
 
 	old_i2c_num = i2c_get_bus_num();
-        old_i2c_speed = i2c_get_bus_speed();
+	old_i2c_speed = i2c_get_bus_speed();
 
-        i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
-        i2c_set_bus_speed(CONFIG_ZL6105_VID_I2C_SPEED);
+	i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
+	i2c_set_bus_speed(CONFIG_ZL6105_VID_I2C_SPEED);
 
 	addr = CONFIG_ZL6105_VID_I2C_ADDR;
 
 	/* get voltage mode and format */
-	i2c_read(addr, VOUT_MODE, 1, (u8*)&val, 1);
+	i2c_read(addr, VOUT_MODE, 1, (u8 *)&val, 1);
 	exponent = -(((s8)(val << 3)) >> 3);
 	dataformat = (u8)(val & 0x00E0);
 	if (dataformat != LINEAR_MODE) {
@@ -172,10 +271,10 @@ static s32 setup_vid_volts(float to_volts)
 
 	/* Set voltage transition rate to about 8 mV / mS */
 	val = 0x8100;
-	i2c_write(addr, VOUT_TRANSITION_RATE, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_TRANSITION_RATE, 1, (u8 *)&val, 2);
 
 	/* get current VOUT voltage */
-	i2c_read(addr, VOUT_COMMAND, 1, (u8*)&val, 2);
+	i2c_read(addr, VOUT_COMMAND, 1, (u8 *)&val, 2);
 	float from_volts = (1.0 * val) / (1 << exponent);
 
 	float hi_volts = from_volts > to_volts ? from_volts : to_volts;
@@ -187,48 +286,46 @@ static s32 setup_vid_volts(float to_volts)
 	float hi_volt_15percent = (hi_volts * 0.15);
 	float lo_volt_10percent = (lo_volts * 0.10);
 	float lo_volt_50percent = (lo_volts * 0.50);
-	float lo_volt_25percent = (lo_volts * 0.25);
-	float lo_volt_15percent = (lo_volts * 0.15);
 
 	/* Make sure limits are wide enough for both to and from voltages */
 	val = convert2linearformat((hi_volts + hi_volt_10percent), exponent);
-	i2c_write(addr, VOUT_MAX, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_MAX, 1, (u8 *)&val, 2);
 
 	val = convert2linearformat((lo_volts - lo_volt_10percent), exponent);
-	i2c_write(addr, POWER_GOOD_ON, 1, (u8*)&val, 2);
+	i2c_write(addr, POWER_GOOD_ON, 1, (u8 *)&val, 2);
 
 	val = convert2linearformat((hi_volts + hi_volt_15percent), exponent);
-	i2c_write(addr, VOUT_OV_FAULT_LIMIT, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_OV_FAULT_LIMIT, 1, (u8 *)&val, 2);
 
 	val = convert2linearformat((lo_volts - lo_volt_50percent), exponent);
-	i2c_write(addr, VOUT_UV_FAULT_LIMIT, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_UV_FAULT_LIMIT, 1, (u8 *)&val, 2);
 
 	mdelay(5);
 	/* switch voltage */
 	val = convert2linearformat(to_volts, exponent);
-	i2c_write(addr, VOUT_COMMAND, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_COMMAND, 1, (u8 *)&val, 2);
 	val = OPERATION_MARGIN_OFF;
-	i2c_write(addr, OPERATION, 1, (u8*)&val, 1);
+	i2c_write(addr, OPERATION, 1, (u8 *)&val, 1);
 	val = convert2linearformat(to_volts, exponent);
-	i2c_write(addr, VOUT_COMMAND, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_COMMAND, 1, (u8 *)&val, 2);
 	val = OPERATION_MARGIN_OFF;
-	i2c_write(addr, OPERATION, 1, (u8*)&val, 1);
+	i2c_write(addr, OPERATION, 1, (u8 *)&val, 1);
 
 	/* Wait for voltage to transition */
 	mdelay(40);
 
 	/* set correct limits around the new voltage */
 	val = convert2linearformat((to_volts + to_volt_10percent), exponent);
-	i2c_write(addr, VOUT_MAX, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_MAX, 1, (u8 *)&val, 2);
 
 	val = convert2linearformat((to_volts - to_volt_10percent), exponent);
-	i2c_write(addr, POWER_GOOD_ON, 1, (u8*)&val, 2);
+	i2c_write(addr, POWER_GOOD_ON, 1, (u8 *)&val, 2);
 
 	val = convert2linearformat((to_volts + to_volt_15percent), exponent);
-	i2c_write(addr, VOUT_OV_FAULT_LIMIT, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_OV_FAULT_LIMIT, 1, (u8 *)&val, 2);
 
 	val = convert2linearformat((to_volts - to_volt_15percent), exponent);
-	i2c_write(addr, VOUT_UV_FAULT_LIMIT, 1, (u8*)&val, 2);
+	i2c_write(addr, VOUT_UV_FAULT_LIMIT, 1, (u8 *)&val, 2);
 
 	to_volts += 0.00004; // help with rounding errors
 	int volts_int = to_volts;
@@ -236,12 +333,76 @@ static s32 setup_vid_volts(float to_volts)
 	printf(" %d.%04d Volts\n", volts_int, volts_frac);
 
 	i2c_set_bus_num(old_i2c_num);
-        i2c_set_bus_speed(old_i2c_speed);
+	i2c_set_bus_speed(old_i2c_speed);
 
 #if defined DEBUG
 	dump_zl6105_regs();
 #endif
 	return 0;
+}
+
+static s32 setup_ir36021_vid_volts(float to_volts)
+{
+	u32 addr;
+	int old_i2c_num;
+	int old_i2c_speed;
+
+	u8 vid = (u8)((to_volts - 0.2425) * 200);
+
+	old_i2c_num = i2c_get_bus_num();
+	old_i2c_speed = i2c_get_bus_speed();
+
+	i2c_set_bus_num(CONFIG_IR36021_VID_I2C_BUS_NUM);
+	i2c_set_bus_speed(CONFIG_IR36021_VID_I2C_SPEED);
+
+	addr = CONFIG_IR36021_VID_I2C_ADDR;
+
+	/* switch voltage */
+	i2c_write(addr, IR36021_SET_VOUT_LOOP1, 1, &vid, 1);
+
+	/* Wait for voltage to transition */
+	mdelay(10);
+
+	to_volts = (vid/200.0) + 0.245 + 0.00004; /* avoid rounding errors */
+	int volts_int = to_volts;
+	int volts_frac = (to_volts - volts_int) * 10000;
+	printf(" %d.%04d Volts\n", volts_int, volts_frac);
+
+	i2c_set_bus_num(old_i2c_num);
+	i2c_set_bus_speed(old_i2c_speed);
+
+#if defined DEBUG
+	dump_ir36021_regs();
+#endif
+	return 0;
+}
+
+static s32 setup_vid_volts(float to_volts)
+{
+	s32 ret;
+
+	if (to_volts > MAXIMUM_VOLTAGE || to_volts < MINIMUM_VOLTAGE) {
+		to_volts += 0.00004; /* avoid rounding errors */
+		int volts_int = to_volts;
+		int volts_frac = (to_volts - volts_int) * 10000;
+		printf("\nVID: ERROR - requested voltage %d.%04d V"
+		       " is outside supported range\n",
+		       volts_int, volts_frac);
+		return -1;
+	}
+	switch (get_board_type()) {
+	case BOARD_TYPE_D4400EVB:
+		ret = setup_zl6105_vid_volts(to_volts);
+		break;
+	case BOARD_TYPE_D4400RDB:
+		ret = setup_ir36021_vid_volts(to_volts);
+		break;
+	default:
+		puts("Error - no VID controller identified for this board\n");
+		ret = -1;
+		break;
+	}
+	return ret;
 }
 
 static s32 setup_vid(u16 vid)
@@ -264,61 +425,6 @@ static s32 setup_vid(u16 vid)
 	printf(" %d.%04d Volts\n", volts_int, volts_frac);
 #endif
 	return setup_vid_volts(volts);
-}
-
-static void dump_zl6105_regs(void)
-{
-	u16 val = 0x0000;
-	u8 exponent;
-	int addr;
-        int old_i2c_num;
-        int old_i2c_speed;
-
-	old_i2c_num = i2c_get_bus_num();
-        old_i2c_speed = i2c_get_bus_speed();
-
-        i2c_set_bus_num(CONFIG_ZL6105_VID_I2C_BUS_NUM);
-        i2c_set_bus_speed(CONFIG_ZL6105_VID_I2C_SPEED);
-
-	addr = CONFIG_ZL6105_VID_I2C_ADDR;
-
-	i2c_read(addr, VOUT_MODE, 1, (u8*)&val, 1);
-	printf("VOUT_MODE:           %04x\n", val);
-	exponent = -(((s8)(val << 3)) >> 3);
-
-	i2c_read(addr, VOUT_MAX, 1, (u8*)&val, 2);
-	printf("VOUT_MAX:            %04x", val);
-	print_zl6105_reg_volts(val, exponent);
-
-	i2c_read(addr, POWER_GOOD_ON, 1, (u8*)&val, 2);
-	printf("POWER_GOOD_ON:       %04x", val);
-	print_zl6105_reg_volts(val, exponent);
-
-	i2c_read(addr, VOUT_OV_FAULT_LIMIT, 1,(u8*)&val, 2);
-	printf("VOUT_OV_FAULT_LIMIT: %04x", val);
-	print_zl6105_reg_volts(val, exponent);
-
-	i2c_read(addr, VOUT_MARGIN_HIGH, 1, (u8*)&val, 2);
-	printf("VOUT_MARGIN_HIGH:    %04x", val);
-	print_zl6105_reg_volts(val, exponent);
-
-	i2c_read(addr, VOUT_UV_FAULT_LIMIT, 1, (u8*)&val, 2);
-	printf("VOUT_UV_FAULT_LIMIT: %04x", val);
-	print_zl6105_reg_volts(val, exponent);
-
-	i2c_read(addr, VOUT_MARGIN_LOW, 1, (u8*)&val, 2);
-	printf("VOUT_MARGIN_LOW:     %04x", val);
-	print_zl6105_reg_volts(val, exponent);
-
-	val = 0x0000;
-	i2c_read(addr, OPERATION, 1, (u8*)&val, 1);
-	printf("OPERATION:           %04x\n", val);
-
-	i2c_read(addr, USER_CONFIG, 1, (u8*)&val, 2);
-	printf("USER_CONFIG:         %04x\n", val);
-
-	i2c_set_bus_num(old_i2c_num);
-        i2c_set_bus_speed(old_i2c_speed);
 }
 
 s32 configure_vid(void)
@@ -381,7 +487,17 @@ static int do_show_vid_regs(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (argc > 1)
 		return CMD_RET_USAGE;
 
-	dump_zl6105_regs();
+	switch (get_board_type()) {
+	case BOARD_TYPE_D4400EVB:
+		dump_zl6105_regs();
+		break;
+	case BOARD_TYPE_D4400RDB:
+		dump_ir36021_regs();
+		break;
+	default:
+		puts("Error - no VID controller identified for this board\n");
+		break;
+	}
 	return 0;
 }
 

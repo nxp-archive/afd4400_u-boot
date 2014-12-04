@@ -36,6 +36,8 @@
 #include <miiphy.h>
 #include <netdev.h>
 
+#include "d4400evb.h"
+
 //#define DEBUG
 
 // Zilker PMBUS defines
@@ -91,17 +93,8 @@ union currents_t {
 	} s;
 };
 
-static int board_rev(void)
-{
-	int rev = 0;
-#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
-	rev = readb(CONFIG_QIXIS_BASE_ADDR + 1);
-#endif
-	return rev;
-}
-
-static int read_adt7461(uchar chip, int *local_temp, int
-			*ext_temp_int, int *ext_temp_frac)
+static int read_adt7461(uchar chip, int *local_temp, int *ext_temp_int,
+			int *ext_temp_frac)
 {
 	uchar rbuf[3];
 
@@ -155,10 +148,34 @@ static int read_ltc2499(uchar chip, int results[])
 	return 0;
 }
 
-static int read_zilker(int *result)
+static int read_ina220(uchar chip, int *core_voltage, int *core_current)
+{
+	uchar rbuf[4];
+
+	if (i2c_read(chip, 0x01, 1, &rbuf[0], 2) != 0) /* Shunt Voltage */
+		return -1;
+	if (i2c_read(chip, 0x02, 1, &rbuf[2], 2) != 0) /* Bus Voltage */
+		return -1;
+	*core_current = 10 * ((rbuf[0] << 8) | rbuf[1]); /* mA */
+	*core_voltage = 4 * (((rbuf[2] << 8) | rbuf[3]) >> 3); /* mV */
+	debug("ina220 = 0x%02X 0x%02X 0x%02X 0x%02X\n",
+	      rbuf[0], rbuf[1], rbuf[2], rbuf[3]);
+
+#if 0
+	if (i2c_read(chip, 0x04, 1, &rbuf[0], 2) != 0) /* Current */
+		return -1;
+	if (i2c_read(chip, 0x03, 1, &rbuf[2], 2) != 0) /* Power */
+		return -1;
+	printf("Current = %5d mA\n", (rbuf[0] << 8) | rbuf[1]); /* mA */
+	printf("Power   = %5d mW\n", 20*((rbuf[2] << 8) | rbuf[3])); /* mW */
+#endif
+	return 0;
+}
+
+static int read_zl6105(int *result)
 {
 	u16 val = 0x0000;
-#if defined(CONFIG_ZL6105_VID)
+#if defined(CONFIG_VID)
 	u32 addr;
 	u8 dataformat;
 	u8 exponent;
@@ -251,10 +268,9 @@ static int dump_ad7993(uchar chip)
 #endif
 
 /*
- * Display board voltages, currents and temperatures
+ * Display EVB voltages, currents and temperatures
  */
-int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
-		char * const argv[])
+static void do_bdstatus_evb(void)
 {
 	int i;
 	int old_i2c_dev;
@@ -283,7 +299,7 @@ int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	ltc_v_ref = 3300;
 	v_scale = v_scale_rev_a;
-	if (board_rev() == EVB_REV_B) {
+	if (get_board_rev() == BOARD_REV_B) {
 		ltc_v_ref = 2500;
 		v_scale = v_scale_rev_b;
 	}
@@ -301,33 +317,33 @@ int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
 	dump_ad7993(0x20);
 #endif
 	if(read_ad7993(0x20, &voltages.v[0]) != 0)
-	printf("ad7993 device reading failed at chip addr 0x20\n");
+		printf("ad7993 device reading failed at chip addr 0x20\n");
 
 #ifdef DEBUG
 	dump_ad7993(0x20);
 	dump_ad7993(0x21);
 #endif
 	if(read_ad7993(0x21, &voltages.v[4]) != 0)
-	printf("ad7993 device reading failed at chip addr 0x21\n");
+		printf("ad7993 device reading failed at chip addr 0x21\n");
 #ifdef DEBUG
 	dump_ad7993(0x21);
 	dump_ad7993(0x22);
 #endif
 	if(read_ad7993(0x22, &voltages.v[8]) != 0)
-	printf("ad7993 device reading failed at chip addr 0x22\n");
+		printf("ad7993 device reading failed at chip addr 0x22\n");
 
 #ifdef DEBUG
 	dump_ad7993(0x22);
 #endif
 
 	if(read_ltc2499(0x45, &currents.i[0]) != 0)
-	printf("ltc2499 reading failed\n");
+		printf("ltc2499 reading failed\n");
 	if(read_adt7461(0x4C, &local_temp, &die_temp_int, &die_temp_frac) != 0)
-	printf("adt7461 reading failed\n");
+		printf("adt7461 reading failed\n");
 
 	core_volts = 0;
-	if (read_zilker(&core_volts) != 0)
-	printf("Zilker device reading failed at chip addr 0x22\n");
+	if (read_zl6105(&core_volts) != 0)
+		printf("Zilker device reading failed at chip addr 0x22\n");
 
 	i2c_set_bus_num(old_i2c_dev);
 	i2c_set_bus_speed(old_i2c_speed);
@@ -368,7 +384,59 @@ int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
 	printf("LTC2499 temp    :   %3d C\n", currents.s.temp);
 	printf("ADT7461 temp    :   %3d C\n", local_temp);
 	printf("AFD4400 temp    :   %3d.%02d C\n", die_temp_int, die_temp_frac);
+}
 
+/*
+ * Display EVB voltages, currents and temperatures
+ */
+static void do_bdstatus_rdb(void)
+{
+	int old_i2c_dev;
+	int old_i2c_speed;
+	int local_temp, die_temp_int, die_temp_frac;
+	int core_voltage, core_current;
+
+	local_temp = 0;
+	die_temp_int = 0;
+	die_temp_frac = 0;
+	core_voltage = 0;
+	core_current = 0;
+	old_i2c_dev = i2c_get_bus_num();
+	old_i2c_speed = i2c_get_bus_speed();
+
+	i2c_set_bus_num(I2C11);
+	i2c_set_bus_speed(400000);
+
+	if (read_ina220(0x40, &core_voltage, &core_current) != 0)
+		printf("ina220 reading failed\n");
+	if (read_adt7461(0x4C, &local_temp, &die_temp_int, &die_temp_frac) != 0)
+		printf("adt7461 reading failed\n");
+
+	i2c_set_bus_num(old_i2c_dev);
+	i2c_set_bus_speed(old_i2c_speed);
+
+	printf("Core 1V / DVDD  : %5d mV,%6d mA\n", core_voltage, core_current);
+	printf("ADT7461 temp    :   %3d C\n", local_temp);
+	printf("AFD4400 temp    :   %3d.%02d C\n", die_temp_int, die_temp_frac);
+}
+
+/*
+ * Display board voltages, currents and temperatures
+ */
+int do_bdstatus(cmd_tbl_t *cmdtp, int flag, int argc,
+		char * const argv[])
+{
+	switch (get_board_type()) {
+	case BOARD_TYPE_D4400EVB:
+		do_bdstatus_evb();
+		break;
+	case BOARD_TYPE_D4400RDB:
+		do_bdstatus_rdb();
+		break;
+	default:
+		puts("Error - unknown board type\n");
+		break;
+	}
 	return 0;
 }
 

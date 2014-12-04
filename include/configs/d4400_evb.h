@@ -67,11 +67,19 @@
 #define CONFIG_SYS_EEPROM_PAGE_WRITE_DELAY_MS   5
 #define CONFIG_SYS_I2C_EEPROM_ADDR_LEN          1
 
+#define CONFIG_VID
 /* ZL6105 VID configuration */
-#define CONFIG_ZL6105_VID
 #define CONFIG_ZL6105_VID_I2C_BUS_NUM	9
 #define CONFIG_ZL6105_VID_I2C_SPEED	25000
-#define CONFIG_ZL6105_VID_I2C_ADDR	0X23
+#define CONFIG_ZL6105_VID_I2C_ADDR	0x23
+/* R36021 VID configuration */
+#define CONFIG_IR36021_VID_I2C_BUS_NUM	9
+#define CONFIG_IR36021_VID_I2C_SPEED	25000
+#define CONFIG_IR36021_VID_I2C_ADDR	0x38
+
+/* Board monitor configuration */
+#define CONFIG_BRD_MON_I2C_BUS_NUM	9
+#define CONFIG_INA220_I2C_ADDR		0x40
 
 /* RTC configuration */
 #define CONFIG_CMD_DATE
@@ -130,15 +138,10 @@
 #define CONFIG_CMD_WEIM_NOR
 #define CONFIG_QIXIS
 #define CONFIG_QIXIS_BASE_ADDR		(WEIM_BASE_ADDR + 0x10000000)
-#define EVB_REV_A   0x11
-#define EVB_REV_B   0x22
-
-#define GCR75   0x012C0148
-#define GCR72   0x012C013c
 
 /*VDD_VSEL Selection*/
 #define CONFIG_OVDD_VSEL
-#define DEFAULT_JFVDD    0x00000004
+
 /* Allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
 #define CONFIG_CONS_INDEX		1
@@ -169,20 +172,47 @@
 
 #define CONFIG_EXTRA_ENV_SETTINGS\
 	"uimage=uImage\0"\
-	"fdt_high=0xffffffff\0"\
-	"initrd_high=0xffffffff\0"\
-	"loadaddr=0x90800000\0"\
-	"consoledev=ttyS3\0"\
-	"fdtaddr=0x91200000\0"\
-	"bootargs_all=setenv bootargs root=/dev/mtdblock4 "\
-		"rootfstype=jffs2 rw console=$consoledev,115200 earlyprintk\0" \
-	"bootcmd_nor=echo Booting from nor flash ...; " \
-		"run bootargs_all; " \
-		"cp.b 0x300C0000 $loadaddr 0x400000;" \
-		"cp.b 0x32CC0000 $fdtaddr 0x20000;" \
-		"bootm $loadaddr - $fdtaddr \0"
-
-
+	"consoledev=ttymxc3\0"\
+	"baudrate=115200\0"\
+	"ramdisksize=600000\0"\
+	"loadaddr=0xb0000000\0"\
+	"bootargs_all=setenv bootargs root=/dev/ram rw console=${consoledev},"\
+		"${baudrate} ramdisk_size=${ramdisksize} rootfstype=ext2 "\
+		"earlyprintk\0"\
+	"bootcmd_nor=echo Booting from NOR FLASH ...; " \
+		"run bootargs_all; cp.b 0x30140000 ${loadaddr} 0x3F00000; "\
+		"bootm ${loadaddr}\0"\
+	"bootcmd_ram=echo Booting from RAM ...; run test_tftp; "\
+		"run bootargs_all;tftp ${loadaddr} ${tftp_path}kernel_fit.itb;"\
+		"bootm ${loadaddr}\0"\
+	"bootcmd_primarykernel=echo Booting primary kernel from NOR flash ...;"\
+		"run bootargs_all; cp.b 0x30140000 ${loadaddr} 0x3F00000; "\
+		"bootm ${loadaddr}\0"\
+	"bootcmd_secondarykernel=echo Booting secondary kernel from NOR flash ...;"\
+		"run bootargs_all; cp.b 0x34040000 ${loadaddr} 0x3F00000; "\
+		"bootm ${loadaddr}\0"\
+	"bootprimarykernel=run bootcmd_primarykernel\0"\
+	"bootsecondarykernel=run bootcmd_secondarykernel\0"\
+	"get_fit1=tftp ${loadaddr} ${tftp_path}kernel_fit.itb; "\
+		"protect off 1:10-513; erase 1:10-513; "\
+		"cp.b ${loadaddr} 0x30140000 ${filesize}; "\
+		"protect on 1:10-513\0"\
+	"get_fit2=tftp ${loadaddr} ${tftp_path}kernel_fit.itb; "\
+		"protect off 1:514-1017; erase 1:514-1017; "\
+		"cp.b ${loadaddr} 0x34040000 ${filesize}; "\
+		"protect on 1:514-1017\0"\
+	"get_rfs=tftp ${loadaddr} ${tftp_path}rootfs.jffs2; "\
+		"protect off 2:0-1023; erase 2:0-1023; "\
+		"cp.b ${loadaddr} 0x38000000 ${filesize}\0"\
+	"get_uboot1=tftp ${loadaddr} ${tftp_path}u-boot-sha256.d4400; "\
+		"protect off 1:0-3; erase 1:0-3; "\
+		"cp.b ${loadaddr} 0x30001000 ${filesize}; protect on 1:0-3\0"\
+	"get_uboot2=tftp ${loadaddr} ${tftp_path}u-boot-sha256.d4400; "\
+		"protect off 1:6-9; erase 1:6-9; "\
+		"cp.b ${loadaddr} 0x300c1000 ${filesize}; protect on 1:6-9\0"\
+	"serverip=10.69.13.69\0"\
+	"test_tftp=ping ${serverip}\0"\
+	"tftp_path=\0"
 
 #define CONFIG_BOOTCOMMAND \
 	"run bootcmd_nor;"
@@ -193,7 +223,7 @@
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_LONGHELP
 #define CONFIG_SYS_HUSH_PARSER
-#define CONFIG_SYS_PROMPT		"D4400-EVB U-Boot => "
+#define CONFIG_SYS_PROMPT		"D4400 U-Boot => "
 #define CONFIG_AUTO_COMPLETE
 #define CONFIG_SYS_CBSIZE		256
 

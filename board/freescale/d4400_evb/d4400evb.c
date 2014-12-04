@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -45,6 +45,8 @@
 #include <asm/arch/qspi_spansion_s25l.h>
 #endif
 
+#include "d4400evb.h"
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |		\
@@ -77,82 +79,154 @@ enum FPGA_GVDD_VSEL {
 	MANUAL_3_3_V_SEL,
 };
 
-#define QIXIS_PWR_CTL2_REG_OFFSET 0x21
-#define QIXIS_GVDD_REG_MASK 0x3
-#define QIXIS_GVDDA_REG_OFFSET 0x6
-#define QIXIS_GVDDB_REG_OFFSET 0x4
-#define QIXIS_GVDDC_REG_OFFSET 0x2
+#define QIXIS_ID_REG_OFFSET		0x00
+#define QIXIS_ID_VALUE		0x25
+#define QIXIS_BOARD_REV_REG_OFFSET	0x01
+#define QIXIS_BOARD_REV_A	0x11
+#define QIXIS_BOARD_REV_B	0x22
+#define QIXIS_QIXIS_REV_MAJOR_OFFSET	0x02
+#define QIXIS_QIXIS_REV_MINOR_OFFSET	0x03
+#define QIXIS_PWR_CTL2_REG_OFFSET	0x21
+#define QIXIS_GVDD_REG_MASK	0x3
+#define QIXIS_GVDDA_REG_SHIFT	0x6
+#define QIXIS_GVDDB_REG_SHIFT	0x4
+#define QIXIS_GVDDC_REG_SHIFT	0x2
+
+#define BCSR_GVDDA_SHIFT	0x4
+#define BCSR_GVDD5_SHIFT	0x5
+#define BCSR_REV_SHIFT		0x6
 #endif
 
-#define MMDC_MDCTL             (0x01080000)
-#define MMDC_MDPDC             (0x01080004)
-#define MMDC_MDOTC             (0x01080008)
-#define MMDC_MDCFG0            (0x0108000C)
-#define MMDC_MDCFG1            (0x01080010)
-#define MMDC_MDCFG2            (0x01080014)
-#define MMDC_MDMISC            (0x01080018)
-#define MMDC_MDSCR             (0x0108001C)
-#define MMDC_MDREF             (0x01080020)
-#define MMDC_MDRWD             (0x0108002C)
-#define MMDC_MDOR              (0x01080030)
-#define MMDC_MDASP             (0x01080040)
-#define MMDC_MPZQHWCTRL        (0x01080800)
-#define MMDC_MPODTCTRL         (0x01080818)
-#define MMDC_MPDGCTRL0         (0x0108083C)
-#define MMDC_MPDGCTRL1         (0x01080840)
-#define MMDC_MPRDDLCTL0        (0x01080848)
-#define MMDC_MPWRDLCTL0        (0x01080850)
-#define MMDC_MPRDDLHWCTL       (0x01080860)
-#define MMDC_MPWRDLHWCTL       (0x01080864)
-#define MMDC_MPRDDLHWST0       (0x01080868)
-#define MMDC_MPRDDLHWST1       (0x0108086C)
-#define MMDC_MPWRDLHWST0       (0x01080870)
-#define MMDC_MPWRDLHWST1       (0x01080874)
-#define MMDC_MPPDCMPR2         (0x01080890)
-#define MMDC_MPMUR             (0x010808B8)
-#define OCRAM_ADDR             (0x60000000)
+#define GCR72			(0x012C013C)
+#define GCR75			(0x012C0148)
+
+#define MMDC_MDCTL		(0x01080000)
+#define MMDC_MDPDC		(0x01080004)
+#define MMDC_MDOTC		(0x01080008)
+#define MMDC_MDCFG0		(0x0108000C)
+#define MMDC_MDCFG1		(0x01080010)
+#define MMDC_MDCFG2		(0x01080014)
+#define MMDC_MDMISC		(0x01080018)
+#define MMDC_MDSCR		(0x0108001C)
+#define MMDC_MDREF		(0x01080020)
+#define MMDC_MDRWD		(0x0108002C)
+#define MMDC_MDOR		(0x01080030)
+#define MMDC_MDASP		(0x01080040)
+#define MMDC_MPZQHWCTRL		(0x01080800)
+#define MMDC_MPODTCTRL		(0x01080818)
+#define MMDC_MPDGCTRL0		(0x0108083C)
+#define MMDC_MPDGCTRL1		(0x01080840)
+#define MMDC_MPRDDLCTL0		(0x01080848)
+#define MMDC_MPWRDLCTL0		(0x01080850)
+#define MMDC_MPRDDLHWCTL	(0x01080860)
+#define MMDC_MPWRDLHWCTL	(0x01080864)
+#define MMDC_MPRDDLHWST0	(0x01080868)
+#define MMDC_MPRDDLHWST1	(0x0108086C)
+#define MMDC_MPWRDLHWST0	(0x01080870)
+#define MMDC_MPWRDLHWST1	(0x01080874)
+#define MMDC_MPPDCMPR2		(0x01080890)
+#define MMDC_MPMUR		(0x010808B8)
+#define OCRAM_ADDR		(0x60000000)
 
 #define ddr_reg32_write(addr, val) { *((volatile u32*)addr) = val; }
 #define ddr_reg32_read(addr) ( *((volatile u32*)addr) )
 
+static enum board_type brd_type = BOARD_TYPE_UNKNOWN;
+static enum board_rev  brd_rev  = BOARD_REV_UNKNOWN;
+static int  board_checked; /* preloaded to 0 */
+
+static void get_board_info(void)
+{
+	if (!board_checked) {
+		board_checked = 1;
+		brd_type = BOARD_TYPE_UNKNOWN;
+		brd_rev  = BOARD_REV_UNKNOWN;
+#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
+		if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR) {
+			u8 reg0 = readb(CONFIG_QIXIS_BASE_ADDR +
+						QIXIS_ID_REG_OFFSET);
+			u8 reg1 = readb(CONFIG_QIXIS_BASE_ADDR +
+						QIXIS_BOARD_REV_REG_OFFSET);
+
+			if (reg0 == reg1) {
+				brd_type = BOARD_TYPE_D4400RDB;
+				brd_rev  = (reg0 >> BCSR_REV_SHIFT) & 3;
+			} else if (reg0 == QIXIS_ID_VALUE) {
+				brd_type = BOARD_TYPE_D4400EVB;
+				switch (reg1) {
+				case QIXIS_BOARD_REV_A:
+					brd_rev = BOARD_REV_A;
+					break;
+				case QIXIS_BOARD_REV_B:
+					brd_rev = BOARD_REV_B;
+					break;
+				default:
+					brd_rev = BOARD_REV_UNKNOWN;
+					break;
+				}
+			}
+		}
+#endif
+	}
+}
+
+enum board_type get_board_type(void)
+{
+	if (!board_checked)
+		get_board_info();
+	return brd_type;
+}
+
+enum board_rev get_board_rev(void)
+{
+	if (!board_checked)
+		get_board_info();
+	return brd_rev;
+}
+
 // This routine is copied into OCRAM and run there to calibrate DDR
 void ddr_calibrate(void)
 {
-        u32 refresh;
-        refresh = ddr_reg32_read(MMDC_MDREF); // Store current DDR Refresh
+	u32 refresh;
+	refresh = ddr_reg32_read(MMDC_MDREF); /* Store current DDR Refresh */
 
-        /* Put DDR into test mode ready for DDR DQS calibration */
-        ddr_reg32_write(MMDC_MDSCR, 0x00008000); // Disable AXI accesses
-        // wait for Configuration mode
-        while (!(ddr_reg32_read(MMDC_MDSCR) & 0x00004000)) {;}
+	/* Put DDR into test mode ready for DDR DQS calibration */
+	ddr_reg32_write(MMDC_MDSCR, 0x00008000); /* Disable AXI accesses */
+	/* wait for Configuration mode */
+	while (!(ddr_reg32_read(MMDC_MDSCR) & 0x00004000))
+		;
 
-        ddr_reg32_write(MMDC_MDREF, 0x0000C000); // Disable refresh Cycles
-        ddr_reg32_write(MMDC_MDSCR, 0x00008020); // Manual Refresh Command to DDR
-        ddr_reg32_write(MMDC_MDSCR, 0x04008050); // Precharge All active banks
-        ddr_reg32_write(MMDC_MDSCR, 0x00048033); // MPR command
-        ddr_reg32_write(MMDC_MPPDCMPR2, 0x00000001); // MPR Configure to Controller
+	ddr_reg32_write(MMDC_MDREF, 0x0000C000); /* Disable refresh Cycles */
+	ddr_reg32_write(MMDC_MDSCR, 0x00008020); /* Manual Refresh Command */
+	ddr_reg32_write(MMDC_MDSCR, 0x04008050); /* Precharge All actv banks */
+	ddr_reg32_write(MMDC_MDSCR, 0x00048033); /* MPR command */
+	ddr_reg32_write(MMDC_MPPDCMPR2, 0x00000001); /* MPR Configure */
 
-        /* Read DQS Calibration */
-        ddr_reg32_write(MMDC_MPDGCTRL0, 0x10000000); // Start Read DQS Calibration
-        // wait for Read DQS Calibration to complete
-        while ((ddr_reg32_read(MMDC_MPDGCTRL0) & 0x10000000) != 0) {;}
+	/* Read DQS Calibration */
+	ddr_reg32_write(MMDC_MPDGCTRL0, 0x10000000); /* Start Read DQS Cal */
+	/* wait for Read DQS Calibration to complete */
+	while ((ddr_reg32_read(MMDC_MPDGCTRL0) & 0x10000000) != 0)
+		;
 
-        /* Read Calibration */
-        ddr_reg32_write(MMDC_MPRDDLHWCTL, 0x00000010); // Start Read Calibration
-        // wait for Read Calibration to complete
-        while (ddr_reg32_read(MMDC_MPRDDLHWCTL) != 0x00000000) {;}
+	/* Read Calibration */
+	ddr_reg32_write(MMDC_MPRDDLHWCTL, 0x00000010); /* Start Read Cal */
+	/* wait for Read Calibration to complete */
+	while (ddr_reg32_read(MMDC_MPRDDLHWCTL) != 0x00000000)
+		;
 
-        /* Write Calibration */
-        ddr_reg32_write(MMDC_MPWRDLHWCTL, 0x00000010); // Start Write Calibration
-        // wait for Write Calibration to complete
-        while (ddr_reg32_read(MMDC_MPWRDLHWCTL) != 0x00000000) {;}
+	/* Write Calibration */
+	ddr_reg32_write(MMDC_MPWRDLHWCTL, 0x00000010); /* Start Write Cal */
+	/* wait for Write Calibration to complete */
+	while (ddr_reg32_read(MMDC_MPWRDLHWCTL) != 0x00000000)
+		;
 
-        /* Restore DDR operational state */
-        ddr_reg32_write(MMDC_MDSCR , 0x00008033); // Exit MPR Mode for DDR device
-        ddr_reg32_write(MMDC_MDREF , refresh); // Setup DDR Refresh
-        ddr_reg32_write(MMDC_MDSCR , 0x00000000); // DDR ready
-        // wait for Configuration mode to end
-        while (ddr_reg32_read(MMDC_MDSCR) & 0x00004000) {;}
+	/* Restore DDR operational state */
+	ddr_reg32_write(MMDC_MDSCR , 0x00008033); /* Exit MPR Mode for DDR */
+	ddr_reg32_write(MMDC_MDREF , refresh); /* Setup DDR Refresh */
+	ddr_reg32_write(MMDC_MDSCR , 0x00000000); /* DDR ready */
+	/* wait for Configuration mode to end */
+	while (ddr_reg32_read(MMDC_MDSCR) & 0x00004000)
+		;
 }
 
 
@@ -173,11 +247,11 @@ static void dram_cal(void)
 
 static int do_ddrcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	// ZQ Calibration - MPZQSWCTRL[ZQ_SW_FOR]
-	// Read DQS Cal     - MPDGCTRL0[HW_DG_EN]      => MPDGCTRL#[DG_DL_ABS_OFFSET#]
-	// Read Calibration - MPRDDLHWCTL[HW_RD_DL_EN] => MPRDDLCTL[RD_DL_ABS_OFFSET#]
-	// Write Calibration - MPWRDLHWCTL0[HW_WR_DL_EN] => MPWRDLCTL[WR_DL_ABS_OFFSET#]
-
+	/* ZQ Calibration - MPZQSWCTRL[ZQ_SW_FOR]
+	 * DQS Cal   - MPDGCTRL0[HW_DG_EN]      => MPDGCTRL#[DG_DL_ABS_OFFSET#]
+	 * Read Cal  - MPRDDLHWCTL[HW_RD_DL_EN] => MPRDDLCTL[RD_DL_ABS_OFFSET#]
+	 * Write Cal - MPWRDLHWCTL0[HW_WR_DL_EN] => MPWRDLCTL[WR_DL_ABS_OFFSET#]
+	 */
 	u32 m1 = ddr_reg32_read(MMDC_MPDGCTRL0);
 	u32 m2 = ddr_reg32_read(MMDC_MPDGCTRL1);
 	u32 m3 = ddr_reg32_read(MMDC_MPRDDLCTL0);
@@ -194,9 +268,9 @@ static int do_ddrcal(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 }
 
 U_BOOT_CMD(
-        ddrcal,        1,              1,      do_ddrcal,
-        "run DDR calibration",
-        ""
+	ddrcal,	1,	1,	do_ddrcal,
+	"run DDR calibration",
+	""
 );
 
 int dram_init(void)
@@ -504,9 +578,9 @@ void setup_qspi(void)
 
 	/* Configure QSPI default clocks to be enabled */
 	unsigned int ccgcr1 = ccm_regs->ccgcr1;
-	ccgcr1 |= (	D4400_CCM_CCGCR1_SFIF_EN_MASK | 
-			D4400_CCM_CCGCR1_SFIF_B_EN_MASK | 
-			D4400_CCM_CCGCR1_SFPAD_FA_EN_MASK);
+	ccgcr1 |= (D4400_CCM_CCGCR1_SFIF_EN_MASK |
+		   D4400_CCM_CCGCR1_SFIF_B_EN_MASK |
+		   D4400_CCM_CCGCR1_SFPAD_FA_EN_MASK);
 	ccm_regs->ccgcr1 = ccgcr1;
 
 	/* Configure mode and clock */
@@ -518,9 +592,9 @@ void setup_qspi(void)
 	/* Set latency which is important because the Boot Rom code changes the
 	 * latency setting according to its usage when booting from qspi flash
 	 * and that setting may be incompatible with the way Uboot uses qspi.
-	 * More specifically, Boot Rom uses single i/o AMBA bus qspi access where 
-         * as Uboot driver uses quad i/o IP qspi access.  These two methods have 
-         * different latency settings.
+	 * More specifically, Boot Rom uses single i/o AMBA bus qspi access
+	 * whereas Uboot driver uses quad i/o IP qspi access.  These two
+	 * methods have different latency settings.
 	 */
 	qspi_reg->lcr = 0x08;	/* Default 0x08 */
 
@@ -532,10 +606,9 @@ void setup_qspi(void)
 
 	val32 = qspi_reg->mcr;
 
- 	val32 &= ~QSPI_MCR_SCLKCFG_MASK; 				/* SCLKCFG 0x00= div1 */
- 	//val32 |= (0x04 << QSPI_MCR_SCLKCFG_OFFSET); 	/* SCLKCFG 0x04= div3, 50MHz */
- 	val32 |= (0x0E << QSPI_MCR_SCLKCFG_OFFSET); 	/* SCLKCFG 0x0E= ~20MHz */
-	val32 |= (QSPI_MCR_CLR_RXF_MASK | QSPI_MCR_CLR_TXF_MASK); /* Clear buffers */
+	val32 &= ~QSPI_MCR_SCLKCFG_MASK;		/* 0x00 = div1 */
+	val32 |= (0x0E << QSPI_MCR_SCLKCFG_OFFSET);	/* 0x0E = ~20MHz */
+	val32 |= (QSPI_MCR_CLR_RXF_MASK | QSPI_MCR_CLR_TXF_MASK); /* Clr bufs */
 
 	/* Configure flash type */
 	val32 &= ~QSPI_MCR_VMID_MASK;
@@ -551,7 +624,6 @@ void setup_qspi(void)
 	/* Drive IO[3:2] low during idle */
 	val32 &= ~(QSPI_MCR_ISD2FA_MASK | QSPI_MCR_ISD3FA_MASK);
 
-
 	/* Before new settings, set MDIS = 1 to allow change. */
 	qspi_reg->mcr |= QSPI_MCR_MDIS_MASK;
 
@@ -560,7 +632,6 @@ void setup_qspi(void)
 
 	/* Once clock is set in MCR, set MDIS = 0 to disallow clk disable. */
 	qspi_reg->mcr &= ~QSPI_MCR_MDIS_MASK;
-
 
 	/* Set 24-bit addressing mode as default.  Qspi driver sets 32-bit
 	 * addressing if required.  See drivers/spi/mxc_spi.c.
@@ -571,7 +642,8 @@ void setup_qspi(void)
 #endif
 
 #if defined CONFIG_QSPI_FLASH_SPANSION && defined CONFIG_QSPI_QUAD_ENABLE
-	QSPI_SPANSION_FLASH_SET_QUADMODE(SPANSION_IO_MODE_QUAD);	/* Set quad mode */
+	/* Set quad mode */
+	QSPI_SPANSION_FLASH_SET_QUADMODE(SPANSION_IO_MODE_QUAD);
 #endif
 }
 
@@ -582,17 +654,17 @@ void qspi_test(void)
 	volatile u32 val32;
 	volatile u32 *pMCR = (volatile u32*)QSPI_MCR_REG;
 
- 	val32 = readl(QSPI_MCR_REG);
- 	val32 |= (1 << 14);  	// MDIS = 1 disable mode
- 	val32 |= (0x2 << 24);  	// SCLKCFG 0x0e= div8
-	val32 |= (2 << 3); 	// 2-Spansion
+	val32 = readl(QSPI_MCR_REG);
+	val32 |= (1 << 14);	/* MDIS = 1 disable mode */
+	val32 |= (0x2 << 24);	/* SCLKCFG 0x0E = div8   */
+	val32 |= (2 << 3);	/* 2-Spansion            */
 	writel(val32, QSPI_MCR_REG);
 
 	while(1)
 	{
-		/* In order to modify b[19:16] to set IOFA/B[2:3] signals hi/low, 
-		 * these steps must be followed:
-		 * 
+		/* In order to modify b[19:16] to set IOFA/B[2:3] signals
+		 * hi/low these steps must be followed:
+		 *
 		 * 1) Set MCR[14] = 1  (MDIS bit)
 		 * 2) Set ISD2FA, ISD3FA, ISD2FB, ISD3FB bits, MCR[19:16].
 		 * 3) Set MCR[14] = 0 to have the drive values take effect.
@@ -605,22 +677,23 @@ void qspi_test(void)
 		 * used. MCR[19:18] are don't cares.
 		 *
 		 */
-		*pMCR |= (1 << 14); // MDIS = 1 disable mode, allows MCR[17:16] to be modified
-		*pMCR &= ~( (1<<17) | (1<<16)  );	// Now clear IOFA bits.
-		*pMCR &= ~(1 << 14); // MDIS = 0 , MCR[17:16] value takes effect
+		/* MDIS = 1 disable mode, allows MCR[17:16] to be modified */
+		*pMCR |= (1<<14);
+		*pMCR &= ~((1<<17) | (1<<16)); /* Now clear IOFA bits   */
+		*pMCR &= ~(1<<14); /* MDIS = 0, MCR[17:16] takes effect */
 
-		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
-		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
-		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
+		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
+		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
+		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
 
-		*pMCR |= (1 << 14); // MDIS = 1 disable mode, allows MCR[17:16] to be modified
-		*pMCR |= ( (1<<17) | (1<<16)  );	// Now set IOFA bits.
-		*pMCR &= ~(1 << 14); // MDIS = 0 , MCR[17:16] value takes effect
+		/* MDIS = 1 disable mode, allows MCR[17:16] to be modified */
+		*pMCR |= (1<<14);
+		*pMCR |= ((1<<17) | (1<<16)); /* Now set IOFA bits      */
+		*pMCR &= ~(1<<14); /* MDIS = 0, MCR[17:16] takes effect */
 
-		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
-		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
-		val32 &= ~( (1<<19) | (1<<18) | (1<<17) | (1<<16)  );
-
+		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
+		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
+		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
 	}
 }
 
@@ -868,84 +941,107 @@ static void setup_i2c_busses(void)
 #endif
 
 #ifdef CONFIG_OVDD_VSEL
-void setup_ovdd_vsel(void)
+static void set_ovdd_vsel(u8 val, u32 reg)
+{
+	switch (val) {
+	case MANUAL_1_8_V_SEL:
+		writel(0x00000007, reg);
+		break;
+	case MANUAL_2_5_V_SEL:
+		writel(0x00000005, reg);
+		break;
+	case MANUAL_3_0_V_SEL:
+	case MANUAL_3_3_V_SEL:
+		writel(0x00000004, reg);
+		break;
+	default:
+		break;
+	}
+}
+
+static void setup_ovdd_vsel(void)
 {
 #if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
-	u8 reg = readb(CONFIG_QIXIS_BASE_ADDR + QIXIS_PWR_CTL2_REG_OFFSET);
-	u8 val = reg;
-	val >>= QIXIS_GVDDA_REG_OFFSET;
-	val &= QIXIS_GVDD_REG_MASK;
-	switch (val) {
-	case MANUAL_1_8_V_SEL:
-		writel(0x00000007, GVDD1_VSEL_REG);
-		writel(0x00000007, GVDD8_VSEL_REG);
-		writel(0x00000007, GVDD9_VSEL_REG);
+	u8 gvdd1, gvdd2, gvdd3, gvdd4, gvdd5, gvdd6, gvdd7, gvdd8, gvdd9;
+	u8 gvdda, gvddb, gvddc;
+	u8 val;
+	u8 update = 1;
+	switch (get_board_type()) {
+	case BOARD_TYPE_D4400EVB:
+		val = readb(CONFIG_QIXIS_BASE_ADDR + QIXIS_PWR_CTL2_REG_OFFSET);
+		gvdda = (val >> QIXIS_GVDDA_REG_SHIFT) & QIXIS_GVDD_REG_MASK;
+		gvddb = (val >> QIXIS_GVDDB_REG_SHIFT) & QIXIS_GVDD_REG_MASK;
+		gvddc = (val >> QIXIS_GVDDC_REG_SHIFT) & QIXIS_GVDD_REG_MASK;
+		gvdd1 = gvdda;
+		gvdd2 = gvddb;
+		gvdd3 = gvddc;
+		gvdd4 = gvddb;
+		gvdd5 = MANUAL_3_3_V_SEL;
+		gvdd6 = gvddc;
+		gvdd7 = gvddb;
+		gvdd8 = gvdda;
+		gvdd9 = gvdda;
 		break;
-	case MANUAL_2_5_V_SEL:
-		writel(0x00000005, GVDD1_VSEL_REG);
-		writel(0x00000005, GVDD8_VSEL_REG);
-		writel(0x00000005, GVDD9_VSEL_REG);
-		break;
-	case MANUAL_3_0_V_SEL:
-	case MANUAL_3_3_V_SEL:
-		writel(0x00000004, GVDD1_VSEL_REG);
-		writel(0x00000004, GVDD8_VSEL_REG);
-		writel(0x00000004, GVDD9_VSEL_REG);
+	case BOARD_TYPE_D4400RDB:
+		val = readb(CONFIG_QIXIS_BASE_ADDR);
+		gvdda = ((val >> BCSR_GVDDA_SHIFT) & 1) ?
+				MANUAL_3_3_V_SEL : MANUAL_1_8_V_SEL;
+		gvddb = ((val >> BCSR_GVDD5_SHIFT) & 1) ?
+				MANUAL_3_3_V_SEL : MANUAL_1_8_V_SEL;
+		gvdd1 = gvdda;
+		gvdd2 = MANUAL_3_3_V_SEL;
+		gvdd3 = MANUAL_1_8_V_SEL;
+		gvdd4 = MANUAL_3_3_V_SEL;
+		gvdd5 = gvddb;
+		gvdd6 = MANUAL_1_8_V_SEL;
+		gvdd7 = MANUAL_3_3_V_SEL;
+		gvdd8 = gvdda;
+		gvdd9 = gvdda;
 		break;
 	default:
+		update = 0;
 		break;
 	}
-	val = reg;
-	val >>= QIXIS_GVDDB_REG_OFFSET;
-	val &= QIXIS_GVDD_REG_MASK;
-	switch (val) {
-	case MANUAL_1_8_V_SEL:
-		writel(0x00000007, GVDD2_VSEL_REG);
-		writel(0x00000007, GVDD4_VSEL_REG);
-		writel(0x00000007, GVDD7_VSEL_REG);
-		break;
-	case MANUAL_2_5_V_SEL:
-		writel(0x00000005, GVDD2_VSEL_REG);
-		writel(0x00000005, GVDD4_VSEL_REG);
-		writel(0x00000005, GVDD7_VSEL_REG);
-		break;
-	case MANUAL_3_0_V_SEL:
-	case MANUAL_3_3_V_SEL:
-		writel(0x00000004, GVDD2_VSEL_REG);
-		writel(0x00000004, GVDD4_VSEL_REG);
-		writel(0x00000004, GVDD7_VSEL_REG);
-		break;
-	default:
-		break;
-	}
-	val = reg;
-	val >>= QIXIS_GVDDC_REG_OFFSET;
-	val &= QIXIS_GVDD_REG_MASK;
-	switch (val) {
-	case MANUAL_1_8_V_SEL:
-		writel(0x00000007, GVDD3_VSEL_REG);
-		writel(0x00000007, GVDD6_VSEL_REG);
-		break;
-	case MANUAL_2_5_V_SEL:
-		writel(0x00000005, GVDD3_VSEL_REG);
-		writel(0x00000005, GVDD6_VSEL_REG);
-		break;
-	case MANUAL_3_0_V_SEL:
-	case MANUAL_3_3_V_SEL:
-		writel(0x00000004, GVDD3_VSEL_REG);
-		writel(0x00000004, GVDD6_VSEL_REG);
-		break;
-	default:
-		break;
+	if (update) {
+		set_ovdd_vsel(gvdd1, GVDD1_VSEL_REG);
+		set_ovdd_vsel(gvdd2, GVDD2_VSEL_REG);
+		set_ovdd_vsel(gvdd3, GVDD3_VSEL_REG);
+		set_ovdd_vsel(gvdd4, GVDD4_VSEL_REG);
+		set_ovdd_vsel(gvdd5, GVDD5_VSEL_REG);
+		set_ovdd_vsel(gvdd6, GVDD6_VSEL_REG);
+		set_ovdd_vsel(gvdd7, GVDD7_VSEL_REG);
+		set_ovdd_vsel(gvdd8, GVDD8_VSEL_REG);
+		set_ovdd_vsel(gvdd9, GVDD9_VSEL_REG);
 	}
 #endif
-
 	/* DEFAULT_JFVDD - 3.3V */
-	writel(DEFAULT_JFVDD, FVDD_VSEL_REG);
-	writel(DEFAULT_JFVDD, JVDD_VSEL_REG);
-	writel(DEFAULT_JFVDD, GVDD5_VSEL_REG);
+	set_ovdd_vsel(MANUAL_3_3_V_SEL, FVDD_VSEL_REG);
+	set_ovdd_vsel(MANUAL_3_3_V_SEL, JVDD_VSEL_REG);
 }
 #endif
+
+static void configure_ina220(void)
+{
+	int old_i2c_dev;
+	int old_i2c_speed;
+	uchar buf[2];
+
+	old_i2c_dev = i2c_get_bus_num();
+	old_i2c_speed = i2c_get_bus_speed();
+
+	i2c_set_bus_num(CONFIG_BRD_MON_I2C_BUS_NUM);
+	i2c_set_bus_speed(400000);
+
+	buf[0] = 0x04; /* FS Bus V = 12V, FS Shunt V = 40 mV */
+	buf[1] = 0xCF; /* 2 samples per voltage conversion */
+	i2c_write(CONFIG_INA220_I2C_ADDR, 0, 1, buf, 2); /* Set configuration */
+	buf[0] = 0xA0; /* Shunt resistor is 1 mOhm */
+	buf[1] = 0x00; /* current = 1 mA/LSB, pwr = 20 mW/LSB */
+	i2c_write(CONFIG_INA220_I2C_ADDR, 5, 1, buf, 2); /* Set calibration */
+
+	i2c_set_bus_num(old_i2c_dev);
+	i2c_set_bus_speed(old_i2c_speed);
+}
 
 int board_early_init_f(void)
 {
@@ -980,21 +1076,48 @@ int board_early_init_f(void)
 int configure_vid(void);
 int board_init(void)
 {
+	char rev = '?';
+	if (BOARD_REV_UNKNOWN != get_board_rev())
+		rev = 'A' + get_board_rev();
+
+	switch (get_board_type()) {
+	case BOARD_TYPE_D4400EVB:
+		printf("Board: D4400-EVB, Rev %c\n", rev);
+		break;
+	case BOARD_TYPE_D4400RDB:
+		printf("Board: D4400-RDB, Rev %c\n", rev);
+		break;
+	default:
+		printf("Board: D4400-???\n");
+		break;
+	}
+
 #if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
 	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
 	{
-		printf("QIXIS: %02x:%02x - %02x.%02x\n",
-		readb(CONFIG_QIXIS_BASE_ADDR + 0),
-		readb(CONFIG_QIXIS_BASE_ADDR + 1),
-		readb(CONFIG_QIXIS_BASE_ADDR + 2),
-		readb(CONFIG_QIXIS_BASE_ADDR + 3));
-
-	    	if (EVB_REV_A == readb(CONFIG_QIXIS_BASE_ADDR + 1)) {
-	    	    writel(0x00000200, GCR75);
-	    	    writel(0x00100000, GCR72);
-	    	}
+		if (BOARD_TYPE_D4400EVB == get_board_type()) {
+			printf("QIXIS: %02x:%02x - %02x.%02x\n",
+			       readb(CONFIG_QIXIS_BASE_ADDR +
+				     QIXIS_ID_REG_OFFSET),
+			       readb(CONFIG_QIXIS_BASE_ADDR +
+				     QIXIS_BOARD_REV_REG_OFFSET),
+			       readb(CONFIG_QIXIS_BASE_ADDR +
+				     QIXIS_QIXIS_REV_MAJOR_OFFSET),
+			       readb(CONFIG_QIXIS_BASE_ADDR +
+				     QIXIS_QIXIS_REV_MINOR_OFFSET));
+		}
 	}
 #endif
+
+	/* Setup GCR signal termination registers */
+	writel(0x00140000, GCR72);
+	/* EVB Rev A boards don't have SYSREF_IN and RGMII_REFCLK resistors */
+	if (BOARD_TYPE_D4400EVB == get_board_type() &&
+	    BOARD_REV_A == get_board_rev()) {
+		writel(0x000FFE80, GCR75);
+	} else {
+		writel(0x000FF880, GCR75);
+	}
 
 #ifdef CONFIG_OVDD_VSEL
 	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
@@ -1010,16 +1133,19 @@ int board_init(void)
 	setup_i2c_busses();
 #endif
 
-#ifdef CONFIG_ZL6105_VID
+#ifdef CONFIG_VID
 	configure_vid();
 #endif
+
+	if (BOARD_TYPE_D4400RDB == get_board_type())
+		configure_ina220();
 
 	return 0;
 }
 
 int checkboard(void)
 {
-	puts("Board: D4400-EVB\n");
+	/* Board printout moved to board init so it can check the type/rev */
 	return 0;
 }
 
