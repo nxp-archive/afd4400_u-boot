@@ -326,8 +326,8 @@ static void setup_weim_qixis(void)
 	d4400_iomux_setup_multiple_pads(qixis_pads, ARRAY_SIZE(qixis_pads));
 
 	writel(0x000400C1, WEIM_CS2_GENERAL_CONFIGURATION_REG_1);
-	writel(0x3F007000, WEIM_CS2_READ_CONFIGURATION_REG_1);
-	writel(0x0f000000, WEIM_CS2_WRITE_CONFIGURATION_REG_1);
+	writel(0x3F007716, WEIM_CS2_READ_CONFIGURATION_REG_1);
+	writel(0x1D026FF6, WEIM_CS2_WRITE_CONFIGURATION_REG_1);
 }
 #endif
 
