@@ -118,17 +118,63 @@ static u32 get_clk_source(u32 plltype)
 	}
 }
 
+
+struct i2c_lpcgr_map {
+	u32 lpcgr_reg_num;
+	u32 bit_group;
+};
+struct i2c_lpcgr_map i2c_clk_map[] = {
+	14,  1, /* i2c_num 0, LPCGR14, group 1 */
+	14,  2, /* i2c_num 1, LPCGR14, group 2 */
+	14,  3, /* i2c_num 2, LPCGR14, group 3 */
+	14,  4, /* i2c_num 3, LPCGR14, group 4 */
+	14,  5, /* i2c_num 4, LPCGR14, group 5 */
+	14,  6, /* i2c_num 5, LPCGR14, group 6 */
+	14,  7, /* i2c_num 6, LPCGR14, group 7 */
+	14,  8, /* i2c_num 7, LPCGR14, group 8 */
+	14,  9, /* i2c_num 8, LPCGR14, group 9 */
+	15,  0, /* i2c_num 9, LPCGR15, group 0 */
+	12,  7, /* i2c_num 10, LPCGR12, group 7 */
+};
+
 /* i2c_num can be from 0 - 10 */
 int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
 {
-#ifdef CONFIG_D4400_HW_DBG
-	u32 reg;
-	u32 mask;
-#endif
+	u32 *lpcgr_reg_addr;
+	u32 bit_offset;
+	u32 val32;
+
 	if (i2c_num > 10)
 		return -EINVAL;
+	/* Note:
+	 * - i2c_num range 0-10 corresponds to i2c 1-11 in ref manual.
+	 * - i2c_num 0 to 8 controlled by LPCGR14 (group 1-9) register
+	 * - i2c_num 9 controlled by LPCGR15 (group 0)
+	 * - i2c_num 10 controlled by LPCGR12 (group 7)
+	 */
+	lpcgr_reg_addr = (u32 *) ((i2c_clk_map[i2c_num].lpcgr_reg_num * 4) +
+		(u32)&d4400_ccm->lpcgr0);
+
+	if (i2c_clk_map[i2c_num].bit_group <= 4)
+		/* 2 bits per group */
+		bit_offset = (u32)(i2c_clk_map[i2c_num].bit_group * 2);
+	else
+		/* b[15:10] is reserved, skip it, 2 bits per group */
+		bit_offset = (u32)((i2c_clk_map[i2c_num].bit_group * 2) + 6);
+
+	/* Mask, turns off clock */
+	val32 = readl(lpcgr_reg_addr) &
+		~(u32)(D4400_CCM_LPCGR_GATE_MASK << bit_offset);
+
+	if (enable)
+		/* Enable if requested, else clock is off. */
+		val32 |= (D4400_LPCGR_GATE_CTRL_ON1 << bit_offset);
+	writel(val32, lpcgr_reg_addr);
 
 #if CONFIG_D4400_HW_DBG
+	u32 reg;
+	u32 mask;
+
 	/* TODO - fixup to use LPCGR registers */
 	mask = MXC_CCM_CCGR_CG_MASK
 		<< (MXC_CCM_CCGR2_I2C1_SERIAL_OFFSET + (i2c_num << 1));

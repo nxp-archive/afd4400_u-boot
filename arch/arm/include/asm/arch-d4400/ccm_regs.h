@@ -240,4 +240,10 @@ struct d4400_ccm_reg {
 
 #define D4400_UART_6144_REF_CLK	61440000
 
+/* CCM-LPCGR */
+#define D4400_CCM_LPCGR_GATE_MASK	3
+#define D4400_LPCGR_GATE_CTRL_OFF	0 /* Off in RUN/WAIT/STOP/STBY */
+#define D4400_LPCGR_GATE_CTRL_ON1	1 /* On during RUN and Off in WAIT/STOP/STBY (default) */
+#define D4400_LPCGR_GATE_CTRL_ON2	2 /* On during RUN/WAIT and Off in STOP/STBY */
+#define D4400_LPCGR_GATE_CTRL_ON3	3 /* On during RUN/WAIT/STOP */
 #endif/*__ARCH_ARM_D4400_CCM_REGS_H__*/
