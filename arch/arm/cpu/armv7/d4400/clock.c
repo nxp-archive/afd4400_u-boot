@@ -124,17 +124,17 @@ struct i2c_lpcgr_map {
 	u32 bit_group;
 };
 struct i2c_lpcgr_map i2c_clk_map[] = {
-	14,  1, /* i2c_num 0, LPCGR14, group 1 */
-	14,  2, /* i2c_num 1, LPCGR14, group 2 */
-	14,  3, /* i2c_num 2, LPCGR14, group 3 */
-	14,  4, /* i2c_num 3, LPCGR14, group 4 */
-	14,  5, /* i2c_num 4, LPCGR14, group 5 */
-	14,  6, /* i2c_num 5, LPCGR14, group 6 */
-	14,  7, /* i2c_num 6, LPCGR14, group 7 */
-	14,  8, /* i2c_num 7, LPCGR14, group 8 */
-	14,  9, /* i2c_num 8, LPCGR14, group 9 */
-	15,  0, /* i2c_num 9, LPCGR15, group 0 */
-	12,  7, /* i2c_num 10, LPCGR12, group 7 */
+	{ 14,  1 }, /* i2c_num 0, LPCGR14, group 1 */
+	{ 14,  2 }, /* i2c_num 1, LPCGR14, group 2 */
+	{ 14,  3 }, /* i2c_num 2, LPCGR14, group 3 */
+	{ 14,  4 }, /* i2c_num 3, LPCGR14, group 4 */
+	{ 14,  5 }, /* i2c_num 4, LPCGR14, group 5 */
+	{ 14,  6 }, /* i2c_num 5, LPCGR14, group 6 */
+	{ 14,  7 }, /* i2c_num 6, LPCGR14, group 7 */
+	{ 14,  8 }, /* i2c_num 7, LPCGR14, group 8 */
+	{ 14,  9 }, /* i2c_num 8, LPCGR14, group 9 */
+	{ 15,  0 }, /* i2c_num 9, LPCGR15, group 0 */
+	{ 12,  7 }  /* i2c_num 10, LPCGR12, group 7 */
 };
 
 /* i2c_num can be from 0 - 10 */
