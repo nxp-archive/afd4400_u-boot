@@ -135,6 +135,10 @@ static enum board_type brd_type = BOARD_TYPE_UNKNOWN;
 static enum board_rev  brd_rev  = BOARD_REV_UNKNOWN;
 static int  board_checked; /* preloaded to 0 */
 
+static const char rdb_rev_letter[4] = {
+	'A', '1', '2', '3'
+};
+
 static void get_board_info(void)
 {
 	if (!board_checked) {
@@ -1076,16 +1080,20 @@ int board_early_init_f(void)
 int configure_vid(void);
 int board_init(void)
 {
-	char rev = '?';
-	if (BOARD_REV_UNKNOWN != get_board_rev())
-		rev = 'A' + get_board_rev();
+	enum board_rev rev = get_board_rev();
+	enum board_type type = get_board_type();
+	char rev_letter = '?';
+
+	if (BOARD_REV_UNKNOWN != rev)
+		rev_letter = (type == BOARD_TYPE_D4400RDB) ?
+					rdb_rev_letter[rev] : 'A' + rev;
 
 	switch (get_board_type()) {
 	case BOARD_TYPE_D4400EVB:
-		printf("Board: D4400-EVB, Rev %c\n", rev);
+		printf("Board: D4400-EVB, Rev %c\n", rev_letter);
 		break;
 	case BOARD_TYPE_D4400RDB:
-		printf("Board: D4400-RDB, Rev %c\n", rev);
+		printf("Board: D4400-RDB, Rev %c\n", rev_letter);
 		break;
 	default:
 		printf("Board: D4400-???\n");
