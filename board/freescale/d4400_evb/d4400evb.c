@@ -136,7 +136,7 @@ static enum board_rev  brd_rev  = BOARD_REV_UNKNOWN;
 static int  board_checked; /* preloaded to 0 */
 
 static const char rdb_rev_letter[4] = {
-	'A', '1', '2', '3'
+	'A', 'C', '2', '3'
 };
 
 static void get_board_info(void)
