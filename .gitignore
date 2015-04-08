@@ -61,7 +61,7 @@
 /include/generated/
 /include/u-boot.lst
 asm-offsets.s
-u-boot-sha256.d4400.*
+u-boot-sha256.d4400*
 tools/ubsha256
 # stgit generated dirs
 patches-*
