@@ -49,6 +49,9 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#define SILICON_REVISION_1_0		(0x10)
+#define SILICON_REVISION_1_1		(0x11)
+
 #define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |		\
 	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_LOW |		\
 	PAD_CTL_DSL_1  | PAD_CTL_HYS)
@@ -1118,7 +1121,16 @@ int board_init(void)
 #endif
 
 	/* Setup GCR signal termination registers */
-	writel(0x00140000, GCR72);
+	if (SILICON_REVISION_1_0 == get_silicon_rev()) {
+		writel(0x00140000, GCR72);
+	} else {
+#ifndef CONFIG_D4400_EVB_MDC_BUG_SW_FIX
+		writel(0x00100000, GCR72); /* Enable MDC open drain */
+#else
+		writel(0x00000000, GCR72); /* Disable MDC open drain */
+#endif
+	}
+
 	/* EVB Rev A boards don't have SYSREF_IN and RGMII_REFCLK resistors */
 	if (BOARD_TYPE_D4400EVB == get_board_type() &&
 	    BOARD_REV_A == get_board_rev()) {
@@ -1128,6 +1140,9 @@ int board_init(void)
 	}
 
 #ifdef CONFIG_OVDD_VSEL
+/*TODO - only do ovdd sel on R1.0 silicon - waiting for confirmation
+	if (SILICON_REVISION_1_0 == get_silicon_rev()) {
+*/
 	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
 	{
 		setup_ovdd_vsel();
