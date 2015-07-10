@@ -57,14 +57,15 @@ DECLARE_GLOBAL_DATA_PTR;
 
 char *env_name_spec = "SPI Flash";
 
-static struct spi_flash *env_flash;
+struct spi_flash *env_flash = NULL;
 
 #if defined(CONFIG_ENV_OFFSET_REDUND)
 int saveenv(void)
 {
 	env_t	env_new;
 	ssize_t	len;
-	char	*res, *saved_buffer = NULL, flag = OBSOLETE_FLAG;
+	char	*res, *saved_buffer = NULL;
+	u32	flag = OBSOLETE_FLAG;
 	u32	saved_size, saved_offset, sector = 1;
 	int	ret;
 
@@ -177,6 +178,7 @@ void env_relocate_spec(void)
 		goto out;
 	}
 
+	spi_flash_printinfo(env_flash);
 	ret = spi_flash_read(env_flash, CONFIG_ENV_OFFSET,
 				CONFIG_ENV_SIZE, tmp_env1);
 	if (ret) {

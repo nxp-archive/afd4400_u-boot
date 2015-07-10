@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2008 Atmel Corporation
  * Copyright (C) 2010 Reinhard Meyer, EMK Elektronik
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -13,6 +14,7 @@
 #include <spi.h>
 #include <spi_flash.h>
 #include <watchdog.h>
+#include <asm/errno.h>
 
 #include "spi_flash_internal.h"
 
@@ -432,15 +434,7 @@ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
 		goto err_manufacturer_probe;
 	}
 #endif
-	printf("SF: Detected %s with page size ", flash->name);
-	print_size(flash->sector_size, ", total ");
-	print_size(flash->size, "");
-	if (flash->memory_map)
-		printf(", mapped at %p", flash->memory_map);
-	puts("\n");
-
 	spi_release_bus(spi);
-
 	return flash;
 
 err_manufacturer_probe:
@@ -480,4 +474,45 @@ void spi_flash_free(struct spi_flash *flash)
 {
 	spi_free_slave(flash->spi);
 	free(flash);
+}
+
+struct spi_flash *spi_get_flash(unsigned int bus, unsigned int cs)
+{
+#ifdef CONFIG_ENV_IS_IN_SPI_FLASH
+	extern struct spi_flash *env_flash;	/* env_sf.c */
+	extern struct spi_flash *cmdsf_flash;	/* cmd_sf.c */
+
+	if (cmdsf_flash) {
+		if ((cmdsf_flash->spi->bus == bus) &&
+			(cmdsf_flash->spi->cs == cs))
+			return cmdsf_flash;
+	}
+	if (env_flash) {
+		if ((env_flash->spi->bus == bus) &&
+			(env_flash->spi->cs == cs))
+			return env_flash;
+	}
+#endif
+	return NULL;
+}
+
+int spi_flash_printinfo(struct spi_flash *flash)
+{
+	if (!flash)
+		return -EINVAL;
+
+	printf("SF:    Detected %s\n       Sector ", flash->name);
+	print_size(flash->sector_size, ", size ");
+	print_size(flash->size, "");
+	if (flash->memory_map)
+		printf(", mapped at %p", flash->memory_map);
+	printf("\n       Speed %i KHz", flash->spi->speed_hz/1000);
+	if (flash->spi->mode & SPI_QUAD_IO)
+		printf(", quadIO ON");
+	else
+		printf(", quadIO OFF");
+	printf(", mode x%02x", flash->spi->mode);
+	puts("\n");
+
+	return 0;
 }

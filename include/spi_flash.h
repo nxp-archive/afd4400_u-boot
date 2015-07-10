@@ -2,6 +2,7 @@
  * Interface to SPI flash
  *
  * Copyright (C) 2008 Atmel Corporation
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -109,5 +110,6 @@ static inline int spi_flash_erase(struct spi_flash *flash, u32 offset,
 }
 
 void spi_boot(void) __noreturn;
-
+struct spi_flash *spi_get_flash(unsigned int bus, unsigned int cs);
+int spi_flash_printinfo(struct spi_flash *flash);
 #endif /* _SPI_FLASH_H_ */

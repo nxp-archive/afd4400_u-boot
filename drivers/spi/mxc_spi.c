@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008, Guennadi Liakhovetski <lg@denx.de>
  *
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -23,14 +23,13 @@
 #include <common.h>
 #include <malloc.h>
 #include <spi.h>
+#include <spi_flash.h>
+#include <mtd/spi-nor.h>
 #include <asm/errno.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
-#include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
-#ifdef CONFIG_QSPI_FLASH_SPANSION
-#include <asm/arch/qspi_spansion_s25l.h>
-#endif
+#include <asm/arch/imx-regs.h>
 
 #ifdef CONFIG_MX27
 /* i.MX27 has a completely wrong register layout and register definitions in the
@@ -362,7 +361,7 @@ int spi_xchg_single(struct spi_slave *slave, unsigned int bitlen,
 	return 0;
 }
 
-void _spi_init(void) 
+void _spi_init(void)
 {
 }
 
@@ -407,7 +406,6 @@ int _spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 
 	return 0;
 }
-
 
 struct spi_slave *_spi_setup_slave(unsigned int bus, unsigned int cs,
 			unsigned int max_hz, unsigned int mode)
@@ -474,7 +472,6 @@ void _spi_release_bus(struct spi_slave *slave)
 /* -----------------------------------------------------------------------*/
 #ifdef CONFIG_FSL_D4400_QSPI
 
-
 #define SWAP32(val32) \
 			(\
 			((val32 & 0xff000000) >> 24) |\
@@ -483,31 +480,30 @@ void _spi_release_bus(struct spi_slave *slave)
 			((val32 & 0x000000ff) << 24) \
 			)
 
-struct qspi_slave {
+struct qspi_data {
 	struct spi_slave slave;
-	u32		clk_actual;
-	u32		addr_mode;
-	u32		quad_enabled;
+	u32 iomode;
 };
 
-
 struct spi_slave *qspi_slave = NULL;
-volatile struct qspi_regs *qspi_reg = (volatile struct qspi_regs *)QSPI_BASE_ADDR;
-static inline struct qspi_slave *to_qspi_slave(struct spi_slave *slave)
+volatile struct qspi_regs *qspi_reg =
+	(volatile struct qspi_regs *)QSPI_BASE_ADDR;
+
+static inline struct qspi_data *to_qspi_data(struct spi_slave *slave)
 {
-	return container_of(slave, struct qspi_slave, slave);
+	if (slave)
+		return container_of(slave, struct qspi_data, slave);
+	else
+		return NULL;
 }
 
-void _qspi_print_buffer(u8 *pData, u32 num_bytes, u8 num_per_line)
+void _qspi_print_buffer(u8 *data, u32 num_bytes, u8 num_per_line)
 {
-	
 	u32 i;
-	u8 *p8 = pData;
-	
-	for(i = 0; i < num_bytes; ++i)
-	{
-		if ( (i % num_per_line) == 0)
-		{
+	u8 *p8 = data;
+
+	for (i = 0; i < num_bytes; ++i) {
+		if ((i % num_per_line) == 0) {
 			printf("\n");
 			printf("%08x: ", (u32)p8);
 		}
@@ -517,49 +513,53 @@ void _qspi_print_buffer(u8 *pData, u32 num_bytes, u8 num_per_line)
 	printf("\n\n");
 }
 
+static u32 get_qspi_clk_freq(u32 clk_src_hz, u32 div)
+{
+	div += 2;
+	if (!div)
+		/* Just in case, avoid div by zero */
+		return 0;
+	return (clk_src_hz << 1) / div;
+}
+
 static u32 get_qspi_clk_div(u32 clk_src_hz, u32 max_hz)
 {
 	u32 div = 0;
 	u32 div_shf;
-	  
-	if (max_hz < clk_src_hz)
-	{
+
+	if (max_hz < clk_src_hz) {
 		/* Qspi can divide in 1/2 increments
-
-			0000 	0.0	0
-			0000 	0.5 	0
-			0000 	1.0 	0
-			0001 	1.5 	1
-			0010 	2.0 	2
-			0011 	2.5 	3
-			0100 	3.0 	4
-			0101 	3.5 	5
-			0110 	4.0 	6
-			0111 	4.5 	7
-			1000 	5.0 	8
-			1001 	5.5 	9
-			1010 	6.0 	10
-			1011 	6.5 	11
-			1100 	7.0 	12
-			1101 	7.5 	13
-			1110 	8.0 	14
-			1111    8.5	15
+			0000	0.0	0
+			0000	0.5	0
+			0000	1.0	0
+			0001	1.5	1
+			0010	2.0	2
+			0011	2.5	3
+			0100	3.0	4
+			0101	3.5	5
+			0110	4.0	6
+			0111	4.5	7
+			1000	5.0	8
+			1001	5.5	9
+			1010	6.0	10
+			1011	6.5	11
+			1100	7.0	12
+			1101	7.5	13
+			1110	8.0	14
+			1111	8.5	15
 		*/
-
 		div_shf = (clk_src_hz  << 1) / max_hz;
-    
 		div = div_shf - 2;
-		
+
 		if (div > 0x0F) /* 0x0F is max, div by 8.5 */
 		  div = 0x0F;
-		  
-		debug("div_shf = %i\n", div_shf);		  
-	}
 
+		debug("div_shf = %i\n", div_shf);
+	}
 	return div;
 }
 
-static s32 qspi_cfg(struct qspi_slave *qspi, unsigned int cs,
+static u32 qspi_cfg(struct qspi_data *qspi, unsigned int cs,
 		unsigned int max_hz, unsigned int mode)
 {
 	u32 mcr_reg;
@@ -567,425 +567,325 @@ static s32 qspi_cfg(struct qspi_slave *qspi, unsigned int cs,
 	u32 div;
 
 	/* Override requested speed as that is for regular spi */
-	max_hz = CONFIG_QSPI_FLASH_SPEED_HZ;
+	if (max_hz < CONFIG_SPI_FLASH_SPEED_MIN_HZ)
+		max_hz = CONFIG_SPI_FLASH_SPEED_MIN_HZ;
+	else if (max_hz > CONFIG_SPI_FLASH_SPEED_MAX_HZ)
+		max_hz = CONFIG_SPI_FLASH_SPEED_MAX_HZ;
 
 	clk_src_hz = mxc_get_clock(MXC_QSPI_CLK);
 	div = get_qspi_clk_div(clk_src_hz, max_hz);
 	debug("clk %d Hz, div %d, real clk %d Hz\n",
 		max_hz, div, clk_src_hz / (4 << div));
 
- 	qspi_reg->mcr |= QSPI_MCR_MDIS_MASK;		/* Allow certain reg to be modified */
+	/* Allow certain reg to be modified */
+	qspi_reg->mcr |= QSPI_MCR_MDIS_MASK;
 
 	mcr_reg = qspi_reg->mcr;
 	mcr_reg &= ~QSPI_MCR_SCLKCFG_MASK;
- 	mcr_reg |= (div << QSPI_MCR_SCLKCFG_OFFSET);
-
-	if (mode & SPI_CPHA)
-		qspi_reg->smpr |= QSPI_SMPR_FSPHS_MASK; /* Can be modified only when MCR MDIS=1) */
+	mcr_reg |= (div << QSPI_MCR_SCLKCFG_OFFSET);
 
 	qspi_reg->mcr = mcr_reg;
-	qspi_reg->mcr &= ~QSPI_MCR_MDIS_MASK;		/* Lock */
+	qspi_reg->mcr &= ~QSPI_MCR_MDIS_MASK; /* Lock */
 
-	return 0;
+	/* Return actual clock speed */
+	return get_qspi_clk_freq(clk_src_hz, div);
 }
 
-int _qspi_xfer_write(u8 *pSrc_buf, u8 *pDest_buf, u32 num_bytes)
+/* Read a small number of bytes from qspi rx fifo.
+ * This function can be used to read status, ids, etc.
+ */
+static int _qspi_read_rx_fifo(u8 *dest8, int num_bytes)
 {
 	int ret = 0;
-	volatile u8 *pSrc = (volatile u8 *)pSrc_buf;   /* Address of system memory */
-	volatile u8 *pDest = (volatile u8 *)pDest_buf; /* Address of qspi flash device */
-	u32 blk_size;
+	u32 *qspi_rxbuf = (u32 *)&qspi_reg->rbdr_base;
+	u32 val32;
+	int i, j, k;
+	u8 *src8;
 
-	/* If source starting or ending address is greater than 16MB, 
-	   then switch to 32bit addressing. 
-	*/
-	if (  ((u32)pSrc_buf & 0xff000000) ||  (((u32)pSrc_buf + num_bytes) & 0xff000000) )
-	{
-#ifdef CONFIG_FSL_D4400_QSPI
-		QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_32BIT);
-#endif
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-		QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_32BIT);
-#endif
+	if (num_bytes > QSPI_RX_FIFO_SIZE)
+		return -EINVAL;
+
+	j = 0;
+	/* Copy from qspi rx fifo to memory */
+	for (i = 0; i < ((num_bytes+3)/4); ++i) {
+		val32 = qspi_rxbuf[i];
+		val32 = SWAP32(val32);
+		src8 = (u8 *)&val32;
+		/* Copy up to 32-bit/4 bytes */
+		k = 0;
+		while ((j < num_bytes) && (k < 4))
+			dest8[j++] = src8[k++];
 	}
-
-	while (num_bytes > 0) {
-
-		if (num_bytes < QSPI_MAX_TX_BYTES)
-			blk_size = num_bytes;
-		else
-			blk_size = QSPI_MAX_TX_BYTES;
-
-		/* Page programming requires that we do not cross page
-		 * boundaries.  Limit the number of bytes so that we
-		 * do not exceed the boundary.
-		 */
-		u32 next_page_start_addr = ((u32)pDest + SPANSION_PAGE_SIZE_BYTES) & ~(u32)(SPANSION_PAGE_SIZE_BYTES-1);
-		u32 end_addr = (u32)pDest + (u32)blk_size;
-
-		if  (end_addr > next_page_start_addr)
-		{
-			blk_size -= (end_addr - next_page_start_addr);
-		}
-
-		/* Do the write */
-		{
-			u32 num_words = blk_size / 4;
-			volatile u32 *p32 = (volatile u32 *)pSrc;
-
-			/* Left over bytes is 3 or less */
-			u32 leftover_bytes = (blk_size - (num_words * 4));
-
-			/* Bytes to write to flash must be 32bit aligned */
-			u32 align32_size = blk_size;
-
-			if (leftover_bytes)
-				align32_size = (num_words * 4) + 4; /* Add one more word */
-
-
-			/* Load whole words */
-			QSPI_CLEAR_TX_BUFPTR();
-			while(num_words--)
-			{
-#ifdef CONFIG_FSL_D4400_QSPI
-				/* When booting from qspi flash devices, the D4400 boot rom reverses 
-				 * the order of the bytes when reading data in 32-bit words (bit endian).
-				 * Since the data is naturally written in little endian format to the
-				 * qspi flash device, the bytes must be swapped to big endian format
-				 * before written.
-				 */
-				u32 tmp = SWAP32(*p32);
-				qspi_reg->tbdr = tmp;
-				++p32;
-#else
-				qspi_reg->tbdr = *p32++;
-#endif
-			} 
-
-			/* Load left over bytes if any */
-			if (leftover_bytes)
-			{
-				/* Residue bytes (number of bytes left less than 4)
-				 * must be "pushed" up towards the high end of the 32-bit
-				 * TX register.
-				 */
-
-				int shift = 4 - leftover_bytes;
-				u32 tmp = *p32;
-
-				/* For unwritten bytes part of the 32-bit word, put 0xffs */
-				tmp |= ((1 << (shift * 8))-1);
-#ifdef CONFIG_FSL_D4400_QSPI
-				tmp = SWAP32(tmp);
-#endif
-				qspi_reg->tbdr = tmp;
-			}
-
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-			/* Blocking call */
-	#ifdef CONFIG_QSPI_QUAD_ENABLE
-			QSPI_SPANSION_FLASH_WRITE_QUAD((u32)pDest, align32_size);
-	#else
-			QSPI_SPANSION_FLASH_WRITE((u32)pDest, align32_size);
-	#endif
-#else
-	#error Qspi flash write op not implemented!
-#endif
-		}
-
-		if (ret)
-			return ret;
-
-		pSrc += blk_size;
-		pDest += blk_size;
-		num_bytes -= blk_size;
-	}
-
-	/* Switch back to 24bit mode in case cpu is reset. */
-	if (  ((u32)pSrc_buf & 0xff000000) ||  (((u32)pSrc_buf + num_bytes) & 0xff000000) )
-	{
-#ifdef CONFIG_FSL_D4400_QSPI
-		QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_24BIT);
-#endif
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-		QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_24BIT);
-#endif	
-	}
-	return 0;
-}
-
-int _qspi_xfer_read(u8 *pSrc_buf, u8 *pDest_buf, u32 num_bytes)
-{
-	int ret = 0;
-	u8 *pSrc = (u8 *)pSrc_buf;   /* Address of qspi flash device */
-	u8 *pDest = (u8 *)pDest_buf; /* Address of system memory */
-	u32 blk_size;
-	u32 aligned_size;
-
-	/* If source starting or ending address is greater than 16MB, 
-	   then switch to 32bit addressing. 
-	*/
-	if (  ((u32)pSrc_buf & 0xff000000) ||  (((u32)pSrc_buf + num_bytes) & 0xff000000) )
-	{
-#ifdef CONFIG_FSL_D4400_QSPI
-		QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_32BIT);
-#endif
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-		QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_32BIT);
-#endif
-	}
-
-	while (num_bytes > 0) {
-
-		if (num_bytes < QSPI_MAX_RX_BYTES)
-			blk_size = num_bytes;
-		else
-			blk_size = QSPI_MAX_RX_BYTES;
-
-		aligned_size = blk_size;
-		while (aligned_size & 0x03)
-		{ ++aligned_size; }
-
-		/* Do the read */
-		{
-			u32 num_words = aligned_size / 4;
-			volatile u32 *p32 = (u32 *)pDest;
-			volatile u32 *pQspi_buf = (volatile u32*)&qspi_reg->rbdr_base;
-			
-			/* Left over bytes is 3 or less */
-			u32 leftover_bytes = (aligned_size - blk_size);
-
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-			/* Blocking call */
-	#ifdef CONFIG_QSPI_QUAD_ENABLE
-			QSPI_SPANSION_FLASH_READ_QUAD((u32)pSrc, aligned_size);
-	#else
-			QSPI_SPANSION_FLASH_READ((u32)pSrc, aligned_size);
-	#endif
-#else
-	#error Qspi flash read op not implemented!
-#endif
-			/* Read whole words */
-			while(num_words--)
-			{
-#ifdef CONFIG_FSL_D4400_QSPI
-				/* When booting from qspi flash devices, the D4400 boot rom reverses 
-				 * the order of the bytes when reading data in 32-bit words (bit endian).
-				 * Since the data is naturally written in little endian format to the
-				 * qspi flash device, the bytes must be swapped to big endian format
-				 * before written.
-				 */
-				*p32 = *pQspi_buf++;
-				*p32 = SWAP32(*p32);
-				p32++;
-#else
-				*p32++ = *pQspi_buf++;
-#endif
-			} 
-
-			/* Read left over bytes if any */
-			if (leftover_bytes)
-			{
-				/* Residue bytes (number of bytes left less than 4)
-				 * must be "pushed" up towards the high end of the 32-bit
-				 * TX register.
-				 */
-				int shift = 4 - leftover_bytes;
-				volatile u32 tmp = *pQspi_buf;
-
-				/* For bytes that are not read but part of the 32-bit word, put zeros */
-				tmp &= ~((1 << (shift * 8))-1);
-
-#ifdef CONFIG_FSL_D4400_QSPI
-				tmp = SWAP32(tmp);
-#endif
-				*p32 = tmp;
-			}
-		}
-
-		if (ret)
-			return ret;
-
-		pSrc += blk_size;
-		pDest += blk_size;
-		num_bytes -= blk_size;
-	}
-
-	/* Switch back to 24bit mode in case cpu is reset. */
-	if (  ((u32)pSrc_buf & 0xff000000) ||  (((u32)pSrc_buf + num_bytes) & 0xff000000) )
-	{
-#ifdef CONFIG_FSL_D4400_QSPI
-		QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_24BIT);
-#endif
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-		QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_24BIT);
-#endif
-	}
-	return 0;
-}
-
-int _qspi_erase(u8 *pStart_addr, u32 num_bytes)
-{
-	int ret = 0;
-
-#ifdef CONFIG_FSL_D4400_QSPI
-	/* If starting or ending address is greater than 16MB, 
-	   then switch to 32bit addressing. 
-	*/
-	if (  ((u32)pStart_addr & 0x00ffffff) ||  (((u32)pStart_addr + num_bytes) & 0x00ffffff) )
-	{
-		QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_32BIT);
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-		QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_32BIT);
-#endif
-	}
-	else
-	{
-		QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_24BIT);
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-		QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_24BIT);
-#endif
-	}
-#endif
-
-	if ( (pStart_addr == 0) && (num_bytes == 0) )
-	{
-		printf("Bulk erase started...");
-
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-		/* Erase device */
-		QSPI_SPANSION_FLASH_BULK_ERASE();
-#else
-	#error Bulk erase not implemented!
-#endif
-		printf("done!\n");
-	}
-	else if (num_bytes > 0)
-	{
-		/* Erase sector */
-
-		/* Get address of start of sector */
-		u32 addr = (u32)pStart_addr & ~(u32)(SPANSION_SECTOR_SIZE_BYTES-1);
-		u32 end_addr = (u32)pStart_addr + num_bytes;
-		u32 sectors_erased = 0;
-
-		printf("Sector erase started...\n");
-
-		do
-		{
-			printf("Erasing sector at address = 0x%08x\n", addr);
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-			QSPI_SPANSION_FLASH_SECTOR_ERASE((u32)addr);
-			addr += SPANSION_SECTOR_SIZE_BYTES;
-#else
-	#error Sector erase not implemented!
-#endif
-			++sectors_erased;
-		} while(addr <= end_addr);
-
-		printf("Total sectors erased: %i\n", sectors_erased);
-	}
-	else
-	{
-		/* Error */
-		ret = 1;
-	}
-
-	/* Switch back to 24bit mode in case cpu is reset. */
-#ifdef CONFIG_FSL_D4400_QSPI
-	QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_24BIT);
-#endif
-#ifdef CONFIG_QSPI_FLASH_SPANSION 
-	QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_24BIT);
-#endif
 	return ret;
 }
 
-/* _qspi_xfer implements read/write with the following rule: 
+/* Write a small number of bytes from qspi tx fifo.
+ * This function can be used to write config reg, etc.
+ */
+static int _qspi_write_tx_fifo(u8 *src8, int num_bytes)
+{
+	int ret = 0;
+	u32 *qspi_txbuf = (u32 *)&qspi_reg->tbdr;
+	u32 val32;
+	int i, j, k;
+
+	if (num_bytes > QSPI_TX_FIFO_SIZE)
+		return -EINVAL;
+
+	j = 0;
+	/* Write from memory to qspi tx fifo */
+	for (i = 0; i < ((num_bytes+3)/4); ++i) {
+		val32 = 0;
+		for (k = 0; (j < num_bytes) & (k < 4); ++k)
+			/* Note that msb/lsb swapping is done here */
+			val32 |= (src8[j++] << ((3 - k) * 8));
+			val32 |= 0;
+		*qspi_txbuf = val32;
+	}
+	return ret;
+}
+
+/* Write up to one tx fifo size */
+int _qspi_xfer_write(u32 *src_buf, u32 *dest_buf, u32 num_bytes, u8 opcode,
+	struct spi_flash *flash)
+{
+	/* Address of system memory */
+	u8 *src = (u8 *)src_buf;
+	/* Address of qspi flash device */
+	u8 *dest = (u8 *)dest_buf;
+
+	/* Length must be less than tx fifo size */
+	if (num_bytes > QSPI_TX_FIFO_SIZE) {
+		printf("qspi: Number of bytes exceeds TX fifo size, %i\n",
+			num_bytes);
+		return -EINVAL;
+	}
+
+	/* Fill the tx fifo */
+	_qspi_write_tx_fifo(src, num_bytes);
+
+	/* Set flash address to erase */
+	QSPI_SET_ADDR((u32)dest);
+	/* Write */
+	QSPI_SEND_CMD(num_bytes, opcode, CLEAR_BUFPTR_NONE);
+
+	return 0;
+}
+
+int _qspi_xfer_read(u32 *src_buf, u32 *dest_buf, u32 num_bytes, u8 opcode,
+	struct spi_flash *flash)
+{
+	int ret = 0;
+	u8 *src;			/* Address of qspi flash device */
+	u8 *dest = (u8 *)dest_buf;	/* Address of system memory */
+
+	/* Set read opcode */
+	QSPI_SET_AMBA_READ_OPCODE(opcode);
+
+	src = (u8 *)((u32)src_buf + QSPI_FLASH_BASE_ADDR);
+	memcpy(dest, src, num_bytes);
+
+	return ret;
+}
+
+/* Erase one sector of flash */
+int _qspi_erase(u32 *start_addr, u32 num_bytes, u8 opcode,
+	struct spi_flash *flash)
+{
+	int ret = 0;
+
+	/* Get address of start of sector */
+	u32 addr = (u32)start_addr &
+		~(u32)(flash->sector_size-1);
+
+	/* Set flash address to erase */
+	QSPI_SET_ADDR(addr);
+	/* Do erase */
+	QSPI_SEND_CMD(0, opcode, CLEAR_BUFPTR_NONE);
+
+	return ret;
+}
+
+/* _qspi_xfer implements read/write with the following rule:
  *
  * - For read operations:
- *	dout 	= addr in qspi flash, data source
- *	din 	= addr in system memory, data destination
+ *	dout = addr in qspi flash, data source
+ *	din  = addr in system memory, data destination
  *
  * - For write operations:
- *	dout 	= addr in system memory, data source
- *	din 	= addr in qspi flash, data destination
+ *	dout = addr in system memory, data source
+ *	din  = addr in qspi flash, data destination
  *
  * - Read operation: flags with QSPI_MODE_RW bit cleared
  * - Write operation: flags with QSPI_MODE_RW bit set
  */
-int _qspi_xfer(struct spi_slave *slave, unsigned int num_bytes, const void *dout,
-		void *din, unsigned long flags)
+static int _qspi_xfer(struct spi_slave *slave, unsigned int bitlen,
+	const void *dout, void *din, unsigned long flags)
 {
 	int ret = 0;
+	int i;
+	u8 *src8;
+	u32 num_bytes =  (bitlen + 7) / 8;
+	static u8 cmd[8];
+	struct spi_flash *flash;
+
+	/* Note that din/dout must be 32-bit aligned. */
+	u32 *p_outbuf = (u32 *)dout;
+	u32 *p_inbuf = (u32 *)din;
 
 	if (!slave)
-		return -1;
+		return -EINVAL;
+	flash = spi_get_flash(slave->bus, slave->cs);
 
-	switch (flags & QSPI_MODE_MASK)
-	{
-	case QSPI_MODE_READ:
-		ret = _qspi_xfer_read((u8 *)dout, (u8 *)din, num_bytes);
+	/* For typical spi devices, read/write operation are done in
+	 * two stages: 1) command sent 2) read or write operation.
+	 * The xfer() func is first invoked with flag set to SPI_XFER_BEGIN
+	 * to send the command.  It is called again with SPI_XFER_END
+	 * to do the actual read/write operation.  Sometimes it is called
+	 * with both flags set, but the order of operation is the same.
+	 *
+	 * For qspi flash devices connected to an qspi module in an ASIC,
+	 * the read/write operation is typically done in one operation.
+	 * The address and number of bytes to transfer is programmed in
+	 * the qspi module of the ASIC.  When the command is sent, the
+	 * qspi module reads/write data from/to a buffer in the ASIC.
+	 * For this type of use model, when this function is invoked with
+	 * the SPI_XFER_BEGIN flag, it queues up the command and parameters.
+	 * When invoked with the SPI_XFER_END flag, it programs everything
+	 * in the qspi module which sends the command and performs read/write
+	 * operation in hardware.  If invoked with both flags set, this func
+	 * performs the operation as listed above.
+	 */
+	if (flags & SPI_XFER_BEGIN) {
+		/* Reset command queue */
+		memset(cmd, 0, 8);
 
-		printf("\n\n---------------------------------------------------------\n");
-		printf(" Src: 0x%08x  Dest: 0x%08x  Bytes: %i / x%x\n", (u32)dout, (u32)din, num_bytes, num_bytes);
-		_qspi_print_buffer(din, num_bytes, 16);
+		if (num_bytes < 8) {
+			/* Queue up the command */
+			src8 = (u8 *)p_outbuf;
+			for (i = 0; i < num_bytes; ++i)
+				cmd[i] = src8[i];
+		} else {
+			printf("qspi: Too many command bytes (%i)\n",
+				num_bytes);
+			ret = -EINVAL;
+		}
 
-		break;
-	case QSPI_MODE_WRITE:
-		ret = _qspi_xfer_write((u8 *)dout, (u8 *)din, num_bytes);
-		break;
-	case QSPI_MODE_ERASE_SECTOR:
-		ret = _qspi_erase((u8 *)dout, num_bytes);
-		break;
-	case QSPI_MODE_ERASE_ALL:
-		ret = _qspi_erase((u8 *)NULL, 0);
-		break;
+		if (flags == SPI_XFER_BEGIN)
+			return ret;
 	}
 
+	/* Check current quad mode setting and change if needed */
+
+	switch (cmd[0]) {
+	case SPINOR_OP_BE:
+	case SPINOR_OP_DIE_ERASE:
+		/* Bulk erase */
+		QSPI_SEND_CMD(0, cmd[0],	CLEAR_BUFPTR_NONE);
+		/* Caller needs to wait for erase to be done. */
+		break;
+	case SPINOR_OP_WREN:
+		/* Write enable */
+		QSPI_SEND_CMD(0, cmd[0], CLEAR_BUFPTR_NONE);
+		break;
+	case SPINOR_OP_WRSR:
+		/* Write to status / config reg */
+		 _qspi_write_tx_fifo((u8 *)p_inbuf, num_bytes);
+		QSPI_SEND_CMD(num_bytes, cmd[0],	CLEAR_BUFPTR_NONE);
+		break;
+	case SPINOR_OP_RDSR: /* Read status reg */
+	case SPINOR_OP_RDCR: /* Read config reg */
+	case SPINOR_OP_BRRD: /* Read bank reg */
+	case SPINOR_OP_RDID: /* JEDEC id */
+		QSPI_SET_ADDR(0);
+		QSPI_SEND_CMD(num_bytes, cmd[0],
+			CLEAR_BUFPTR_RXTX);
+		_qspi_read_rx_fifo((u8 *)p_inbuf, num_bytes);
+		break;
+	case SPINOR_OP_READ:
+	case SPINOR_OP_READ4:
+	case SPINOR_OP_READ4_1_1_2:
+	case SPINOR_OP_READ4_1_1_4:
+		/* Assemble the flash offset address */
+		p_outbuf = (u32 *)((cmd[1] << 24) | (cmd[2] << 16) |
+			(cmd[3] << 8) | cmd[4]);
+		ret = _qspi_xfer_read(p_outbuf, p_inbuf, num_bytes, cmd[0],
+			flash);
+		break;
+	case SPINOR_OP_PP:
+	case SPINOR_OP_PP_4B:
+	case SPINOR_OP_PP_4B_1_1_4:
+		/* Assemble the flash offset address */
+		p_inbuf = (u32 *)((cmd[1] << 24) | (cmd[2] << 16) |
+			(cmd[3] << 8) | cmd[4]);
+		ret = _qspi_xfer_write(p_outbuf, p_inbuf, num_bytes, cmd[0],
+			flash);
+		break;
+	case SPINOR_OP_SE:
+	case SPINOR_OP_SE_4B:
+		/* Convert sector number in cmd[2:1] to address */
+		p_outbuf = (u32 *)(((cmd[1] << 8) | cmd[2]) *
+			flash->sector_size);
+		/* 16 is a dummy value.  Any sector that the p_outbuf
+		 * falls in is erased.
+		 */
+		ret = _qspi_erase(p_outbuf, 16, cmd[0], flash);
+		break;
+	default:
+		printf("%s: Unrecognized command cmd[0]:x%02x\n",
+			__func__, cmd[0]);
+		ret = -1;
+		break;
+	};
+
+	if (flags & SPI_XFER_END) {
+		/* Reset command queue again in case a SPI_XFER_BEGIN is
+		 * is not sent.
+		 */
+		memset(cmd, 0, 8);
+	}
 	return ret;
+}
+
+void _qspi_free_slave(struct spi_slave *slave)
+{
+	struct qspi_data *qspi = to_qspi_data(slave);
+	free(qspi);
 }
 
 struct spi_slave *_qspi_setup_slave(unsigned int bus, unsigned int cs,
 			unsigned int max_hz, unsigned int mode)
 {
-	struct qspi_slave *qspi;
-	int ret;
-	static u8 qspi_cfg_done = 0;
+	struct qspi_data *qspi = NULL;
 
-	qspi = spi_alloc_slave(struct qspi_slave, bus, cs);
+	qspi = spi_alloc_slave(struct qspi_data, bus, cs);
 	if (!qspi) {
 		puts("qspi: QSPI Slave not allocated !\n");
 		return NULL;
 	}
 
-	/* Don't need to do config every single time.  Just do it once.
-	   If done for every r/w operation, re-configuring the clocks could
-	   cause problems with the single i/o read. 
-	*/
-	if (qspi_cfg_done == 0) {
-		ret = qspi_cfg(qspi, cs, max_hz, mode);
-		qspi_cfg_done = 1;
-	}
+	/* Actual clock speed is returned */
+	qspi->slave.speed_hz = qspi_cfg(qspi, cs, max_hz, mode);
 
-	if (ret) {
+	if (!qspi->slave.speed_hz) {
 		printf("qspi: cannot setup QSPI controller\n");
 		free(qspi);
 		return NULL;
 	}
-	return &qspi->slave;
-}
 
-void _qspi_free_slave(struct spi_slave *slave)
-{
-	struct qspi_slave *qspi = to_qspi_slave(slave);
-	free(qspi);
+	/* Always operate in 4-byte address mode */
+	QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_32BIT);
+
+	/* Save quad io mode */
+	qspi->slave.mode = mode;
+
+	return &qspi->slave;
 }
 
 int _qspi_claim_bus(struct spi_slave *slave)
 {
 	if (!slave)
-		return -1;
+		return -EINVAL;
 
 	/* Clear RX and TX buffer status */
 	QSPI_CLEAR_RX_TX_BUFPTR();
@@ -1011,29 +911,26 @@ void spi_init(void)
 struct spi_slave *spi_setup_slave(unsigned int bus, unsigned int cs,
 			unsigned int max_hz, unsigned int mode)
 {
+#ifdef CONFIG_FSL_D4400_QSPI
 	int num_spi_devices = ARRAY_SIZE(spi_bases);
 
-#ifdef CONFIG_FSL_D4400_QSPI
-	if (bus == (num_spi_devices + 1))
-	{
+	/* Use last device+1 as the qspi bus */
+	if (bus == (num_spi_devices + 1)) {
 		/* Quad io spi */
 		qspi_slave = _qspi_setup_slave(bus, cs, max_hz, mode);
 		return qspi_slave;
-	}
-	else /* (bus <= num_spi_devices) */
+	} else
 #endif
-	{
 		/* Two wire spi */
 		return _spi_setup_slave(bus, cs, max_hz, mode);
-	}
-
 }
 
 int spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 		void *din, unsigned long flags)
 {
 #ifdef CONFIG_FSL_D4400_QSPI
-	if (qspi_slave == slave)
+	if ((qspi_slave->bus == slave->bus) &&
+		(qspi_slave->cs == slave->cs))
 		/* bitlen is really number of bytes for qspi */
 		return _qspi_xfer(slave, bitlen, dout, din, flags);
 	else
@@ -1041,11 +938,11 @@ int spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 		return _spi_xfer(slave, bitlen, dout, din, flags);
 }
 
-
 void spi_free_slave(struct spi_slave *slave)
 {
 #ifdef CONFIG_FSL_D4400_QSPI
-	if (qspi_slave == slave)
+	if ((qspi_slave->bus == slave->bus) &&
+		(qspi_slave->cs == slave->cs))
 		_qspi_free_slave(slave);
 	else
 #endif
@@ -1055,7 +952,8 @@ void spi_free_slave(struct spi_slave *slave)
 int spi_claim_bus(struct spi_slave *slave)
 {
 #ifdef CONFIG_FSL_D4400_QSPI
-	if (qspi_slave == slave)
+	if ((qspi_slave->bus == slave->bus) &&
+		(qspi_slave->cs == slave->cs))
 		return _qspi_claim_bus(slave);
 	else
 #endif
@@ -1066,7 +964,8 @@ void spi_release_bus(struct spi_slave *slave)
 {
 	/* TODO: Shut the controller down */
 #ifdef CONFIG_FSL_D4400_QSPI
-	if (qspi_slave == slave)
+	if ((qspi_slave->bus == slave->bus) &&
+		(qspi_slave->cs == slave->cs))
 		_qspi_release_bus(slave);
 	else
 #endif

@@ -58,10 +58,6 @@ static void *pSrc = NULL;
 static void *pDest = NULL;
 static u32 flags = 0;
 
-#ifdef CONFIG_FSL_D4400_QSPI
-static u8 qspi_transaction = 0;	/* 0-spi 1-qspi */
-#endif
-
 /*
  * SPI read/write
  *
@@ -102,21 +98,6 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		}
 		if (argc >= 3)
 			bitlen = simple_strtoul(argv[2], NULL, 10);
-		
-#ifdef CONFIG_FSL_D4400_QSPI
-		if (argc >= 5) {
-			/* Qspi transaction, get source and destination address */
-			qspi_transaction = 1;
-
-			/* For qspi, all parameters are specified as hex */
-			bitlen = simple_strtoul(argv[2], NULL, 16);		/* bitlen is actually byte size */
-			pSrc = (void *)simple_strtoul(argv[3], NULL, 16);
-			pDest = (void *)simple_strtoul(argv[4], NULL, 16);
-
-			debug("Qspi pSrc = 0x%08x  pDest = 0x%08x flags=0x%08x\n", (u32)pSrc, (u32)pDest, flags);
-		}
-		else 
-#endif
 		if (argc >= 4) {
 			/* Standard spi transaction */
 			pSrc = dout;
@@ -141,23 +122,6 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			}
 		}
 	}
-	else
-	{
-		/* Repeated command */
-#ifdef CONFIG_FSL_D4400_QSPI
-		pSrc += bitlen;
-		pDest += bitlen;
-#endif	
-	}
-
-#ifdef CONFIG_FSL_D4400_QSPI
-	if (qspi_transaction)
-	{
-		flags = mode;
-		max_bitlen = 0x1fffffff; /* (0x1fffffff * 8 bits) = 0xfffffff8 32-bit limit */
-	}
-#endif
-
 	if ((bitlen < 0) || (bitlen >  (max_bitlen * 8))) {
 		printf("Invalid bitlen %d\n", bitlen);
 		return 1;
@@ -173,15 +137,7 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if(spi_xfer(slave, bitlen, pSrc, pDest,	flags) != 0) {
 		printf("Error during SPI transaction\n");
 		rcode = 1;
-	} 
-#ifdef CONFIG_FSL_D4400_QSPI
-	else if (qspi_transaction == 0) {
-		for(j = 0; j < ((bitlen + 7) / 8); j++) {
-			printf("%02X", din[j]);
-		}
-		printf("\n");
 	}
-#endif
 	spi_release_bus(slave);
 	spi_free_slave(slave);
 
@@ -199,14 +155,5 @@ U_BOOT_CMD(
 	"<cs>      - Identifies the chip select\n"
 	"<mode>    - Identifies the SPI mode to use\n"
 	"<bit_len> - Number of bits to send (base 10)\n"
-	"<dout>    - Hexadecimal string that gets sent\n\n"
-#ifdef CONFIG_FSL_D4400_QSPI
-	"QSPI\n"
-	"[<bus>:]0.<mode> <byte_len> <src addr> <dest addr> - Read and write to qspi flash\n"
-	"<bus>     - Identifies the QSPI bus, 9 for D4400\n"
-	"<mode>    - 0-read 1-write 2-erase sec 3-erase dev\n"
-	"<byte_len> - Number of bytes to send, hexidecimal\n"
-	"<src addr> - Source address, hexidecimal\n"
-	"<dest addr>- Destination address, hexidecimal\n"
-#endif
+	"<dout>    - Hexadecimal string that gets sent\n"
 );

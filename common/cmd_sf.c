@@ -25,8 +25,7 @@
 # define CONFIG_SF_DEFAULT_BUS		0
 #endif
 
-static struct spi_flash *flash;
-
+struct spi_flash *cmdsf_flash = NULL;
 
 /*
  * This function computes the length argument for the erase command.
@@ -60,8 +59,8 @@ static int sf_parse_len_arg(char *arg, ulong *len)
 	if (ep == arg || *ep != '\0')
 		return -1;
 
-	if (round_up_len && flash->sector_size > 0)
-		*len = ROUND(len_arg, flash->sector_size);
+	if (round_up_len && cmdsf_flash->sector_size > 0)
+		*len = ROUND(len_arg, cmdsf_flash->sector_size);
 	else
 		*len = len_arg;
 
@@ -126,9 +125,10 @@ static int do_spi_flash_probe(int argc, char * const argv[])
 		return 1;
 	}
 
-	if (flash)
-		spi_flash_free(flash);
-	flash = new;
+	if (cmdsf_flash)
+		spi_flash_free(cmdsf_flash);
+	cmdsf_flash = new;
+	spi_flash_printinfo(cmdsf_flash);
 
 	return 0;
 }
@@ -250,9 +250,9 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 		return -1;
 
 	/* Consistency checking */
-	if (offset + len > flash->size) {
+	if (offset + len > cmdsf_flash->size) {
 		printf("ERROR: attempting %s past flash size (%#x)\n",
-			argv[0], flash->size);
+			argv[0], cmdsf_flash->size);
 		return 1;
 	}
 
@@ -263,11 +263,11 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 	}
 
 	if (strcmp(argv[0], "update") == 0)
-		ret = spi_flash_update(flash, offset, len, buf);
+		ret = spi_flash_update(cmdsf_flash, offset, len, buf);
 	else if (strcmp(argv[0], "read") == 0)
-		ret = spi_flash_read(flash, offset, len, buf);
+		ret = spi_flash_read(cmdsf_flash, offset, len, buf);
 	else
-		ret = spi_flash_write(flash, offset, len, buf);
+		ret = spi_flash_write(cmdsf_flash, offset, len, buf);
 
 	unmap_physmem(buf, len);
 
@@ -282,7 +282,7 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 static int do_spi_flash_erase(int argc, char * const argv[])
 {
 	unsigned long offset;
-	unsigned long len;
+	unsigned long len = 0;
 	char *endp;
 	int ret;
 
@@ -293,18 +293,26 @@ static int do_spi_flash_erase(int argc, char * const argv[])
 	if (*argv[1] == 0 || *endp != 0)
 		return -1;
 
-	ret = sf_parse_len_arg(argv[2], &len);
+	ret = strcasecmp(argv[2], "all");
+	if (ret)
+		ret = sf_parse_len_arg(argv[2], &len);
+	else {
+		/* Erase of entire flash */
+		ret = 1;
+		offset = 0;
+		len = cmdsf_flash->size;
+	}
 	if (ret != 1)
 		return -1;
 
 	/* Consistency checking */
-	if (offset + len > flash->size) {
+	if (offset + len > cmdsf_flash->size) {
 		printf("ERROR: attempting %s past flash size (%#x)\n",
-			argv[0], flash->size);
+			argv[0], cmdsf_flash->size);
 		return 1;
 	}
 
-	ret = spi_flash_erase(flash, offset, len);
+	ret = spi_flash_erase(cmdsf_flash, offset, len);
 	if (ret) {
 		printf("SPI flash %s failed\n", argv[0]);
 		return 1;
@@ -487,7 +495,7 @@ static int do_spi_flash(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	}
 
 	/* The remaining commands require a selected device */
-	if (!flash) {
+	if (!cmdsf_flash) {
 		puts("No SPI flash selected. Please run `sf probe'\n");
 		return 1;
 	}
@@ -522,15 +530,19 @@ usage:
 U_BOOT_CMD(
 	sf,	5,	1,	do_spi_flash,
 	"SPI flash sub-system",
-	"probe [[bus:]cs] [hz] [mode]	- init flash device on given SPI bus\n"
-	"				  and chip select\n"
-	"sf read addr offset len 	- read `len' bytes starting at\n"
-	"				  `offset' to memory at `addr'\n"
-	"sf write addr offset len	- write `len' bytes from memory\n"
-	"				  at `addr' to flash at `offset'\n"
-	"sf erase offset [+]len		- erase `len' bytes from `offset'\n"
-	"				  `+len' round up `len' to block size\n"
-	"sf update addr offset len	- erase and write `len' bytes from memory\n"
-	"				  at `addr' to flash at `offset'"
+	"probe [[bus:]cs] [hz] [mode]    - init flash device on given SPI bus\n"
+	"                                  and chip select\n"
+	"                                  mode b[6]=1 to enable quad IO\n"
+	"sf read addr offset len         - read `len' bytes starting at\n"
+	"                                  `offset' to memory at `addr'\n"
+	"sf write addr offset len        - write `len' bytes from memory\n"
+	"                                  at `addr' to flash at `offset'\n"
+	"sf erase offset [+]len          - erase `len' bytes from `offset'\n"
+	"                                  `+len' round up `len' to block size\n"
+	"				   Set 'len' to \"all\" for entire flash\n"
+	"sf update addr [+]offset [+]len - erase and write `len' bytes from memory\n"
+	"                                  at `addr' to flash at `offset'\n"
+	"                                  `+offset' sector size aligned\n"
+	"                                  `+len' round up `len' to sector size\n"
 	SF_TEST_HELP
 );

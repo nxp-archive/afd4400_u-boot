@@ -37,6 +37,7 @@
 #define	SPI_LSB_FIRST	0x08			/* per-word bits-on-wire */
 #define	SPI_3WIRE	0x10			/* SI/SO signals shared */
 #define	SPI_LOOP	0x20			/* loopback mode */
+#define SPI_QUAD_IO	0x40			/* Spi quad I/O enable */
 
 /* SPI transfer flags */
 #define SPI_XFER_BEGIN	0x01			/* Assert CS before transfer */
@@ -51,11 +52,15 @@
  *   cs:	ID of the chip select connected to the slave.
  *   max_write_size:	If non-zero, the maximum number of bytes which can
  *		be written at once, excluding command bytes.
+ *   speedHz:	Clock speed of the spi bus in Hz.
+ *   mode:      Spi mode, see spi.h for flags.
  */
 struct spi_slave {
 	unsigned int	bus;
 	unsigned int	cs;
-	unsigned int max_write_size;
+	unsigned int	max_write_size;
+	unsigned int	speed_hz;
+	unsigned int	mode;
 };
 
 /*-----------------------------------------------------------------------

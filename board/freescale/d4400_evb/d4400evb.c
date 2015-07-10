@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -41,10 +41,6 @@
 #include <libfdt.h>
 #endif
 
-#ifdef CONFIG_QSPI_FLASH_SPANSION
-#include <asm/arch/qspi_spansion_s25l.h>
-#endif
-
 #include "d4400evb.h"
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -74,7 +70,6 @@ DECLARE_GLOBAL_DATA_PTR;
 	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |		\
 	PAD_CTL_DSL_1 | PAD_CTL_HYS | PAD_CTL_ODE)
 
-#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
 enum FPGA_GVDD_VSEL {
 	MANUAL_1_8_V_SEL,
 	MANUAL_2_5_V_SEL,
@@ -98,6 +93,15 @@ enum FPGA_GVDD_VSEL {
 #define BCSR_GVDDA_SHIFT	0x4
 #define BCSR_GVDD5_SHIFT	0x5
 #define BCSR_REV_SHIFT		0x6
+
+#define QIXIS_NUM_REG		97
+#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
+	#define fpga_read(offset)	readb(offset)
+#elif defined(CONFIG_FSL_D4400_QSPI) && defined(CONFIG_QIXIS)
+	u8 fpga_reg[QIXIS_NUM_REG];
+	#define fpga_read(offset)	fpga_reg[offset]
+#else
+	#error Fpga read is not defined!
 #endif
 
 #define GCR72			(0x012C013C)
@@ -148,32 +152,28 @@ static void get_board_info(void)
 		board_checked = 1;
 		brd_type = BOARD_TYPE_UNKNOWN;
 		brd_rev  = BOARD_REV_UNKNOWN;
-#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
-		if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR) {
-			u8 reg0 = readb(CONFIG_QIXIS_BASE_ADDR +
-						QIXIS_ID_REG_OFFSET);
-			u8 reg1 = readb(CONFIG_QIXIS_BASE_ADDR +
-						QIXIS_BOARD_REV_REG_OFFSET);
+		u8 reg0 = fpga_read(CONFIG_QIXIS_BASE_ADDR +
+					QIXIS_ID_REG_OFFSET);
+		u8 reg1 = fpga_read(CONFIG_QIXIS_BASE_ADDR +
+					QIXIS_BOARD_REV_REG_OFFSET);
 
-			if (reg0 == reg1) {
-				brd_type = BOARD_TYPE_D4400RDB;
-				brd_rev  = (reg0 >> BCSR_REV_SHIFT) & 3;
-			} else if (reg0 == QIXIS_ID_VALUE) {
-				brd_type = BOARD_TYPE_D4400EVB;
-				switch (reg1) {
-				case QIXIS_BOARD_REV_A:
-					brd_rev = BOARD_REV_A;
-					break;
-				case QIXIS_BOARD_REV_B:
-					brd_rev = BOARD_REV_B;
-					break;
-				default:
-					brd_rev = BOARD_REV_UNKNOWN;
-					break;
-				}
+		if (reg0 == reg1) {
+			brd_type = BOARD_TYPE_D4400RDB;
+			brd_rev  = (reg0 >> BCSR_REV_SHIFT) & 3;
+		} else if (reg0 == QIXIS_ID_VALUE) {
+			brd_type = BOARD_TYPE_D4400EVB;
+			switch (reg1) {
+			case QIXIS_BOARD_REV_A:
+				brd_rev = BOARD_REV_A;
+				break;
+			case QIXIS_BOARD_REV_B:
+				brd_rev = BOARD_REV_B;
+				break;
+			default:
+				brd_rev = BOARD_REV_UNKNOWN;
+				break;
 			}
 		}
-#endif
 	}
 }
 
@@ -397,7 +397,7 @@ static void setup_weim_nor(void)
 }
 #endif
 
-#ifdef CONFIG_QIXIS
+#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
 iomux_cfg_t qixis_pads[] = {
 	D4400_PAD_FLASH_CS2_B_EIM_CS2_B | MUX_PAD_CTRL(NO_PAD_CTRL)
 };
@@ -576,7 +576,8 @@ void setup_qspi(void)
 
 	struct d4400_ccm_reg *ccm_regs =
 		(struct d4400_ccm_reg *)CCM_BASE_ADDR;
-	volatile struct qspi_regs *qspi_reg = (volatile struct qspi_regs *)QSPI_BASE_ADDR;
+	volatile struct qspi_regs *qspi_reg =
+		(volatile struct qspi_regs *)QSPI_BASE_ADDR;
 
 	/* Configure QSPI clock to default */
 	unsigned int ccsr = ccm_regs->ccsr;
@@ -596,12 +597,12 @@ void setup_qspi(void)
 	/* Sampling */
 	qspi_reg->smpr = 0;
 
-	/* Set latency which is important because the Boot Rom code changes the
-	 * latency setting according to its usage when booting from qspi flash
-	 * and that setting may be incompatible with the way Uboot uses qspi.
-	 * More specifically, Boot Rom uses single i/o AMBA bus qspi access
-	 * whereas Uboot driver uses quad i/o IP qspi access.  These two
-	 * methods have different latency settings.
+	/* Set latency which is important because the Boot Rom code changes
+	 * the latency setting according to its usage when booting from qspi
+	 * flash and that setting may be incompatible with the way Uboot uses
+	 * qspi. More specifically, Boot Rom uses single i/o AMBA bus qspi
+	 * access whereas Uboot driver uses quad i/o IP qspi access.  These
+	 * two methods have different latency settings.
 	 */
 	qspi_reg->lcr = 0x08;	/* Default 0x08 */
 
@@ -619,6 +620,7 @@ void setup_qspi(void)
 
 	/* Configure flash type */
 	val32 &= ~QSPI_MCR_VMID_MASK;
+
 	if (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_SPANSION)
 		val32 |= (2 << 3);	/* Spansion */
 	else if (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_MACRONIX)
@@ -628,8 +630,8 @@ void setup_qspi(void)
 	else /* (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_WINBOND) */
 		val32 |= (1 << 3);	/* Winbond */
 
-	/* Drive IO[3:2] low during idle */
-	val32 &= ~(QSPI_MCR_ISD2FA_MASK | QSPI_MCR_ISD3FA_MASK);
+	/* Drive IO[3:2] high (default) during idle */
+	val32 |= (QSPI_MCR_ISD2FA_MASK | QSPI_MCR_ISD3FA_MASK);
 
 	/* Before new settings, set MDIS = 1 to allow change. */
 	qspi_reg->mcr |= QSPI_MCR_MDIS_MASK;
@@ -640,18 +642,20 @@ void setup_qspi(void)
 	/* Once clock is set in MCR, set MDIS = 0 to disallow clk disable. */
 	qspi_reg->mcr &= ~QSPI_MCR_MDIS_MASK;
 
+	/* Turn off all interrupts */
+	qspi_reg->rser = 0;
+
+	/* Clear pending irqs */
+	qspi_reg->fr = 0xffffffff;
+
 	/* Set 24-bit addressing mode as default.  Qspi driver sets 32-bit
 	 * addressing if required.  See drivers/spi/mxc_spi.c.
 	 */
 	QSPI_SET_ADDR_MODE(QSPI_ADDR_MODE_24BIT);
-#ifdef CONFIG_QSPI_FLASH_SPANSION
-	QSPI_SPANSION_FLASH_SET_ADDR_MODE(SPANSION_ADDR_MODE_24BIT);
-#endif
 
-#if defined CONFIG_QSPI_FLASH_SPANSION && defined CONFIG_QSPI_QUAD_ENABLE
-	/* Set quad mode */
-	QSPI_SPANSION_FLASH_SET_QUADMODE(SPANSION_IO_MODE_QUAD);
-#endif
+	/* Note that qspi quad I/O mode is enabled/disabled when the
+	 * spi flash device is probed.  See spi_flash.c/spi_flash_probe().
+	 */
 }
 
 void qspi_test(void)
@@ -659,7 +663,7 @@ void qspi_test(void)
 	/* Toggle IO[3:2] signals */
 
 	volatile u32 val32;
-	volatile u32 *pMCR = (volatile u32*)QSPI_MCR_REG;
+	volatile u32 *mcr = (volatile u32 *)QSPI_MCR_REG;
 
 	val32 = readl(QSPI_MCR_REG);
 	val32 |= (1 << 14);	/* MDIS = 1 disable mode */
@@ -667,8 +671,7 @@ void qspi_test(void)
 	val32 |= (2 << 3);	/* 2-Spansion            */
 	writel(val32, QSPI_MCR_REG);
 
-	while(1)
-	{
+	while(1) {
 		/* In order to modify b[19:16] to set IOFA/B[2:3] signals
 		 * hi/low these steps must be followed:
 		 *
@@ -685,25 +688,24 @@ void qspi_test(void)
 		 *
 		 */
 		/* MDIS = 1 disable mode, allows MCR[17:16] to be modified */
-		*pMCR |= (1<<14);
-		*pMCR &= ~((1<<17) | (1<<16)); /* Now clear IOFA bits   */
-		*pMCR &= ~(1<<14); /* MDIS = 0, MCR[17:16] takes effect */
+		*mcr |= (1<<14);
+		*mcr &= ~((1<<17) | (1<<16)); /* Now clear IOFA bits   */
+		*mcr &= ~(1<<14); /* MDIS = 0, MCR[17:16] takes effect */
 
 		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
 		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
 		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
 
 		/* MDIS = 1 disable mode, allows MCR[17:16] to be modified */
-		*pMCR |= (1<<14);
-		*pMCR |= ((1<<17) | (1<<16)); /* Now set IOFA bits      */
-		*pMCR &= ~(1<<14); /* MDIS = 0, MCR[17:16] takes effect */
+		*mcr |= (1<<14);
+		*mcr |= ((1<<17) | (1<<16)); /* Now set IOFA bits      */
+		*mcr &= ~(1<<14); /* MDIS = 0, MCR[17:16] takes effect */
 
 		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
 		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
 		val32 &= ~((1<<19) | (1<<18) | (1<<17) | (1<<16));
 	}
 }
-
 #endif /* CONFIG_FSL_D4400_QSPI */
 
 #ifdef CONFIG_MXC_SPI
@@ -968,14 +970,13 @@ static void set_ovdd_vsel(u8 val, u32 reg)
 
 static void setup_ovdd_vsel(void)
 {
-#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
 	u8 gvdd1, gvdd2, gvdd3, gvdd4, gvdd5, gvdd6, gvdd7, gvdd8, gvdd9;
 	u8 gvdda, gvddb, gvddc;
 	u8 val;
 	u8 update = 1;
 	switch (get_board_type()) {
 	case BOARD_TYPE_D4400EVB:
-		val = readb(CONFIG_QIXIS_BASE_ADDR + QIXIS_PWR_CTL2_REG_OFFSET);
+		val = fpga_read(CONFIG_QIXIS_BASE_ADDR + QIXIS_PWR_CTL2_REG_OFFSET);
 		gvdda = (val >> QIXIS_GVDDA_REG_SHIFT) & QIXIS_GVDD_REG_MASK;
 		gvddb = (val >> QIXIS_GVDDB_REG_SHIFT) & QIXIS_GVDD_REG_MASK;
 		gvddc = (val >> QIXIS_GVDDC_REG_SHIFT) & QIXIS_GVDD_REG_MASK;
@@ -990,7 +991,7 @@ static void setup_ovdd_vsel(void)
 		gvdd9 = gvdda;
 		break;
 	case BOARD_TYPE_D4400RDB:
-		val = readb(CONFIG_QIXIS_BASE_ADDR);
+		val = fpga_read(CONFIG_QIXIS_BASE_ADDR);
 		gvdda = ((val >> BCSR_GVDDA_SHIFT) & 1) ?
 				MANUAL_3_3_V_SEL : MANUAL_1_8_V_SEL;
 		gvddb = ((val >> BCSR_GVDD5_SHIFT) & 1) ?
@@ -1020,10 +1021,28 @@ static void setup_ovdd_vsel(void)
 		set_ovdd_vsel(gvdd8, GVDD8_VSEL_REG);
 		set_ovdd_vsel(gvdd9, GVDD9_VSEL_REG);
 	}
-#endif
 	/* DEFAULT_JFVDD - 3.3V */
 	set_ovdd_vsel(MANUAL_3_3_V_SEL, FVDD_VSEL_REG);
 	set_ovdd_vsel(MANUAL_3_3_V_SEL, JVDD_VSEL_REG);
+}
+#endif
+
+#if defined(CONFIG_FSL_D4400_QSPI) && defined(CONFIG_QIXIS)
+void read_fpga_i2c_reg(u8 *buf, int num)
+{
+	int old_i2c_dev;
+	int old_i2c_speed;
+
+	old_i2c_dev = i2c_get_bus_num();
+	old_i2c_speed = i2c_get_bus_speed();
+
+	i2c_set_bus_num(CONFIG_QIXIS_FPGA_I2C_BUS_NUM);
+	i2c_set_bus_speed(400000);
+
+	i2c_read(CONFIG_QIXIS_FPGA_I2C_ADDR, 0, 1, buf, num);
+
+	i2c_set_bus_num(old_i2c_dev);
+	i2c_set_bus_speed(old_i2c_speed);
 }
 #endif
 
@@ -1073,9 +1092,7 @@ int board_early_init_f(void)
 #ifdef CONFIG_FSL_D4400_QSPI
 	/* Qspi setup. */
 	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_QSPI)
-	{
 		setup_qspi();
-	}
 #endif
 	return 0;
 }
@@ -1083,9 +1100,24 @@ int board_early_init_f(void)
 int configure_vid(void);
 int board_init(void)
 {
-	enum board_rev rev = get_board_rev();
-	enum board_type type = get_board_type();
+	enum board_rev rev;
+	enum board_type type;
 	char rev_letter = '?';
+
+#ifdef CONFIG_I2C_MXC
+	setup_i2c_busses();
+#endif
+
+#if defined(CONFIG_FSL_D4400_QSPI) && defined(CONFIG_QIXIS)
+	/* As soon as i2c bus is configured, read all of the
+	 * fpga registers for later use.
+	 */
+	memset(fpga_reg, 0, QIXIS_NUM_REG);
+	read_fpga_i2c_reg(fpga_reg, QIXIS_NUM_REG);
+#endif
+
+	rev = get_board_rev();
+	type = get_board_type();
 
 	if (BOARD_REV_UNKNOWN != rev)
 		rev_letter = (type == BOARD_TYPE_D4400RDB) ?
@@ -1103,22 +1135,19 @@ int board_init(void)
 		break;
 	}
 
-#if defined(CONFIG_CMD_WEIM_NOR) && defined(CONFIG_QIXIS)
-	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
 	{
 		if (BOARD_TYPE_D4400EVB == get_board_type()) {
 			printf("QIXIS: %02x:%02x - %02x.%02x\n",
-			       readb(CONFIG_QIXIS_BASE_ADDR +
-				     QIXIS_ID_REG_OFFSET),
-			       readb(CONFIG_QIXIS_BASE_ADDR +
-				     QIXIS_BOARD_REV_REG_OFFSET),
-			       readb(CONFIG_QIXIS_BASE_ADDR +
-				     QIXIS_QIXIS_REV_MAJOR_OFFSET),
-			       readb(CONFIG_QIXIS_BASE_ADDR +
-				     QIXIS_QIXIS_REV_MINOR_OFFSET));
+				fpga_read(CONFIG_QIXIS_BASE_ADDR +
+					QIXIS_ID_REG_OFFSET),
+				fpga_read(CONFIG_QIXIS_BASE_ADDR +
+					QIXIS_BOARD_REV_REG_OFFSET),
+				fpga_read(CONFIG_QIXIS_BASE_ADDR +
+					QIXIS_QIXIS_REV_MAJOR_OFFSET),
+				fpga_read(CONFIG_QIXIS_BASE_ADDR +
+					QIXIS_QIXIS_REV_MINOR_OFFSET));
 		}
 	}
-#endif
 
 	/* Setup GCR signal termination registers */
 	if (SILICON_REVISION_1_0 == get_silicon_rev()) {
@@ -1144,17 +1173,11 @@ int board_init(void)
 	if (SILICON_REVISION_1_0 == get_silicon_rev()) {
 */
 	if (QUERY_FLASH_BOOT_MEM_TYPE() == FLASH_BOOT_MEM_TYPE_NOR)
-	{
 		setup_ovdd_vsel();
-	}
 #endif
 
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
-
-#ifdef CONFIG_I2C_MXC
-	setup_i2c_busses();
-#endif
 
 #ifdef CONFIG_VID
 	configure_vid();

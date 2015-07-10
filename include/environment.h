@@ -114,6 +114,44 @@ extern unsigned long nand_env_oob_offset;
 # endif
 #endif /* CONFIG_ENV_IS_IN_UBI */
 
+#if defined(CONFIG_ENV_IS_IN_SPI_FLASH)
+# ifndef	CONFIG_ENV_ADDR
+#  define	CONFIG_ENV_ADDR	(CONFIG_SYS_FLASH_BASE + CONFIG_ENV_OFFSET)
+# endif
+# ifndef	CONFIG_ENV_OFFSET
+#  define	CONFIG_ENV_OFFSET (CONFIG_ENV_ADDR - CONFIG_SYS_FLASH_BASE)
+# endif
+# if !defined(CONFIG_ENV_ADDR_REDUND) && defined(CONFIG_ENV_OFFSET_REDUND)
+#  define	CONFIG_ENV_ADDR_REDUND	\
+		(CONFIG_SYS_FLASH_BASE + CONFIG_ENV_OFFSET_REDUND)
+# endif
+# if defined(CONFIG_ENV_SECT_SIZE) || defined(CONFIG_ENV_SIZE)
+#  ifndef	CONFIG_ENV_SECT_SIZE
+#   define	CONFIG_ENV_SECT_SIZE	CONFIG_ENV_SIZE
+#  endif
+#  ifndef	CONFIG_ENV_SIZE
+#   define	CONFIG_ENV_SIZE	CONFIG_ENV_SECT_SIZE
+#  endif
+# else
+#  error "Both CONFIG_ENV_SECT_SIZE and CONFIG_ENV_SIZE undefined"
+# endif
+# if defined(CONFIG_ENV_ADDR_REDUND) && !defined(CONFIG_ENV_SIZE_REDUND)
+#  define CONFIG_ENV_SIZE_REDUND	CONFIG_ENV_SIZE
+# endif
+# if	(CONFIG_ENV_ADDR >= CONFIG_SYS_MONITOR_BASE) &&		\
+	(CONFIG_ENV_ADDR + CONFIG_ENV_SIZE) <=			\
+	(CONFIG_SYS_MONITOR_BASE + CONFIG_SYS_MONITOR_LEN)
+#  define ENV_IS_EMBEDDED
+# endif
+# if defined(CONFIG_ENV_ADDR_REDUND) || defined(CONFIG_ENV_OFFSET_REDUND)
+#  define CONFIG_SYS_REDUNDAND_ENVIRONMENT
+# endif
+# ifdef CONFIG_ENV_IS_EMBEDDED
+#  error "do not define CONFIG_ENV_IS_EMBEDDED in your board config"
+#  error "it is calculated automatically for you"
+# endif
+#endif	/* CONFIG_ENV_IS_IN_SPI_FLASH */
+
 /* Embedded env is only supported for some flash types */
 #ifdef CONFIG_ENV_IS_EMBEDDED
 # if	!defined(CONFIG_ENV_IS_IN_FLASH)	&& \
@@ -212,5 +250,4 @@ int set_default_vars(int nvars, char * const vars[]);
 int env_import(const char *buf, int check);
 
 #endif /* DO_DEPS_ONLY */
-
 #endif /* _ENVIRONMENT_H_ */
