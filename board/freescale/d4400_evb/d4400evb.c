@@ -1104,6 +1104,12 @@ int board_init(void)
 	enum board_type type;
 	char rev_letter = '?';
 
+	if (SILICON_REVISION_1_0 == get_silicon_rev()) {
+		printf("\n\n\tDFE silicon version 1.0 is no longer supported.\n");
+		printf("\tPlease upgrade DFE device.\n\n");
+		while (1) {}
+	}
+
 #ifdef CONFIG_I2C_MXC
 	setup_i2c_busses();
 #endif
