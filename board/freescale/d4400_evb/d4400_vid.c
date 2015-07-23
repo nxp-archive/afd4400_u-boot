@@ -381,7 +381,14 @@ static s32 setup_vid_volts(float to_volts)
 {
 	s32 ret;
 
-	if (to_volts > MAXIMUM_VOLTAGE || to_volts < MINIMUM_VOLTAGE) {
+	if (0 == to_volts) {
+		u16 vid = get_efuse_vid();
+		float volts = vid2voltmap[vid];
+		int volts_int = volts;
+		int volts_frac = (volts - volts_int) * 10000;
+		printf("vid_volts = 0.  Using fuse value %d.%04d Volts\n", volts_int, volts_frac);
+		return 0;
+	} else if (to_volts > MAXIMUM_VOLTAGE || to_volts < MINIMUM_VOLTAGE) {
 		to_volts += 0.00004; /* avoid rounding errors */
 		int volts_int = to_volts;
 		int volts_frac = (to_volts - volts_int) * 10000;
