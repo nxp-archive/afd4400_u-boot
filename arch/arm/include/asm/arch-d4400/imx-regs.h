@@ -511,20 +511,18 @@ struct cspi_regs {
 };
 
 struct iim_fuse_t {
-	u32 reserved0[2];
-	u32 ext_eth_phy_addr;
-	u32 reserved1[3];
-	u32 srec;
-	u32 reserved2[36];
-	u32 macaddr5;
+	u32 reserved0[0x08/4];
+	u32 ext_eth_phy_addr;   /* 0x0008 */
+	u32 reserved1[0xAC/4];  /* 0x000C-0x00B4 */
+	u32 macaddr5;           /* 0x00B8 */
 	u32 macaddr4;
 	u32 macaddr3;
 	u32 macaddr2;
 	u32 macaddr1;
-	u32 macaddr0;
-	u32 reserved3[21];
-	u32 vid1;
-	u32 vid2;
+	u32 macaddr0;           /* 0x00CC */
+	u32 reserved2[0x54/4];  /* 0x00D0-0x0120*/
+	u32 vid1;               /* 0x0124 */
+	u32 vid2;               /* 0x0128 */
 };
 
 struct iim_regs {
