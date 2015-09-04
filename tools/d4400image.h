@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -22,7 +22,8 @@
 #ifndef _D4400IMAGE_H_
 #define _D4400IMAGE_H_
 
-#include <configs/d4400_evb.h>
+#include <config.h>
+
 /* Number of DCD entries is limited to 200 */
 #define MAX_DCD_ENTRY 200
 

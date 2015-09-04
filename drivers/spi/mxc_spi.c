@@ -784,19 +784,28 @@ static int _qspi_xfer(struct spi_slave *slave, unsigned int bitlen,
 		QSPI_SEND_CMD(0, cmd[0],	CLEAR_BUFPTR_NONE);
 		/* Caller needs to wait for erase to be done. */
 		break;
-	case SPINOR_OP_WREN:
-		/* Write enable */
+#ifdef CONFIG_SPI_FLASH_MICRON
+	case SPINOR_OP_ENQUADIO:	/* Enter quad I/O, Micron */
+#endif
+	case SPINOR_OP_WREN:		/* Write enable */
+	case SPINOR_OP_EN4B:		/* Enter ext addr */
+	case SPINOR_OP_EX4B:		/* Exit ext addr */
 		QSPI_SEND_CMD(0, cmd[0], CLEAR_BUFPTR_NONE);
 		break;
-	case SPINOR_OP_WRSR:
+	case SPINOR_OP_WRSR:		/* Write status reg */
+	case SPINOR_OP_WR_NVCFG:	/* Write nonvol config reg, Micron */
 		/* Write to status / config reg */
 		 _qspi_write_tx_fifo((u8 *)p_inbuf, num_bytes);
 		QSPI_SEND_CMD(num_bytes, cmd[0],	CLEAR_BUFPTR_NONE);
 		break;
-	case SPINOR_OP_RDSR: /* Read status reg */
-	case SPINOR_OP_RDCR: /* Read config reg */
-	case SPINOR_OP_BRRD: /* Read bank reg */
-	case SPINOR_OP_RDID: /* JEDEC id */
+#ifndef CONFIG_SPI_FLASH_MICRON
+	case SPINOR_OP_RDCR:		/* Read config reg */
+#endif
+	case SPINOR_OP_RDSR:		/* Read status reg */
+	case SPINOR_OP_RDFSR:		/* Read flag status reg */
+	case SPINOR_OP_BRRD:		/* Read bank reg */
+	case SPINOR_OP_RDID:		/* JEDEC id */
+	case SPINOR_OP_RD_NVCFG:	/* Read nonvol config reg, Micron */
 		QSPI_SET_ADDR(0);
 		QSPI_SEND_CMD(num_bytes, cmd[0],
 			CLEAR_BUFPTR_RXTX);
@@ -814,7 +823,7 @@ static int _qspi_xfer(struct spi_slave *slave, unsigned int bitlen,
 		break;
 	case SPINOR_OP_PP:
 	case SPINOR_OP_PP_4B:
-	case SPINOR_OP_PP_4B_1_1_4:
+	case SPINOR_OP_PP_4B_1_1_4:	/* Alias SPINOR_OP_PP_4B_1_2_4 */
 		/* Assemble the flash offset address */
 		p_inbuf = (u32 *)((cmd[1] << 24) | (cmd[2] << 16) |
 			(cmd[3] << 8) | cmd[4]);
@@ -823,13 +832,36 @@ static int _qspi_xfer(struct spi_slave *slave, unsigned int bitlen,
 		break;
 	case SPINOR_OP_SE:
 	case SPINOR_OP_SE_4B:
+	case SPINOR_OP_BE_4K:
 		/* Convert sector number in cmd[2:1] to address */
 		p_outbuf = (u32 *)(((cmd[1] << 8) | cmd[2]) *
 			flash->sector_size);
+
+#if ((defined CONFIG_SPI_FLASH_MICRON) && (defined D4400_QSPI_NUMONYX_BUG_WORKAROUND))
+		/* BUG WORKAROUND: Qspi Numonyx/Micron mode has a bug with
+		 * SPINOR_OP_SE/0xd8 command.  In 4-byte addr mode, the qspi
+		 * module sends out only 3 addr instead of 4.  Switch to
+		 * Spansion mode temporarily to send the erase command
+		 * which will do it correctly and send 4 addr bytes.
+		 */
+		u8 type = 0;
+		type = GET_QSPI_FLASH_TYPE();
+		if (cmd[0] == SPINOR_OP_SE) {
+			SET_QSPI_FLASH_TYPE(QSPI_FLASH_TYPE_SPANSION);
+		}
+#endif
+
 		/* 16 is a dummy value.  Any sector that the p_outbuf
 		 * falls in is erased.
 		 */
 		ret = _qspi_erase(p_outbuf, 16, cmd[0], flash);
+#if ((defined CONFIG_SPI_FLASH_MICRON) && (defined D4400_QSPI_NUMONYX_BUG_WORKAROUND))
+		/* BUG WORKAROUND: Switch back to original flash type
+		 * after sending erase command in Spansion mode.
+		 */
+		if (cmd[0] == SPINOR_OP_SE)
+			SET_QSPI_FLASH_TYPE(type);
+#endif
 		break;
 	default:
 		printf("%s: Unrecognized command cmd[0]:x%02x\n",
@@ -962,7 +994,6 @@ int spi_claim_bus(struct spi_slave *slave)
 
 void spi_release_bus(struct spi_slave *slave)
 {
-	/* TODO: Shut the controller down */
 #ifdef CONFIG_FSL_D4400_QSPI
 	if ((qspi_slave->bus == slave->bus) &&
 		(qspi_slave->cs == slave->cs))

@@ -33,7 +33,7 @@
 #define SPINOR_OP_CHIP_ERASE	0xc7	/* Erase whole flash chip */
 #define SPINOR_OP_SE		0xd8	/* Sector erase (usually 64KiB) */
 #define SPINOR_OP_RDID		0x9f	/* Read JEDEC ID */
-#define SPINOR_OP_RDCR		0x35	/* Read configuration register */
+#define SPINOR_OP_RDCR		0x35	/* Read configuration register, Spansion */
 #define SPINOR_OP_RDFSR		0x70	/* Read flag status register */
 
 /* 4-byte address opcodes - used on Spansion and some Macronix flashes. */
@@ -50,7 +50,7 @@
 #define SPINOR_OP_WRDI		0x04	/* Write disable */
 #define SPINOR_OP_AAI_WP	0xad	/* Auto address increment word program */
 
-/* Used for Macronix and Winbond flashes. */
+/* Used for Macronix, Winbond, and Micron flashes. */
 #define SPINOR_OP_EN4B		0xb7	/* Enter 4-byte mode */
 #define SPINOR_OP_EX4B		0xe9	/* Exit 4-byte mode */
 
@@ -64,6 +64,13 @@
 #define SPINOR_OP_RD_EVCR	0x65    /* Read EVCR register */
 #define SPINOR_OP_WD_EVCR	0x61    /* Write EVCR register */
 #define SPINOR_OP_DIE_ERASE	0xC4	/* Die erase */
+#define SPINOR_OP_WR_NVCFG	0xb1	/* Write nonvolatile config reg */
+#define SPINOR_OP_RD_NVCFG	0xb5	/* Read nonvolatile config reg */
+#define SPINOR_OP_PP_4B_1_2_4   0X12	/* Quad page program */
+#define SPINOR_OP_ENQUADIO	0x35	/* Enter quad I/O mode, Micron */
+
+#define NVCFG_QUAD_EN_MICRON	0x08	/* Micron Quad I/O, nonvolatile cfg */
+#define NVCFG_4ADDR_MICRON	0x01	/* Micron 4-byte addr enable, nonvolatile cfg */
 
 /* Status Register bits. */
 #define SR_WIP			1	/* Write in progress */

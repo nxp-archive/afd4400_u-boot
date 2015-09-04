@@ -351,6 +351,9 @@ static const struct {
 #ifdef CONFIG_SPI_FLASH_MACRONIX
 	{ 0, 0xc2, spi_flash_probe_macronix, },
 #endif
+#ifdef CONFIG_SPI_FLASH_MICRON
+	{ 0, 0x20, spi_flash_probe_micron, },
+#endif
 #ifdef CONFIG_SPI_FLASH_SPANSION
 	{ 0, 0x01, spi_flash_probe_spansion, },
 #endif
@@ -415,13 +418,14 @@ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
 		continue;
 
 	/* search the table for matches in shift and id */
-	for (i = 0; i < ARRAY_SIZE(flashes); ++i)
+	for (i = 0; i < ARRAY_SIZE(flashes); ++i) {
 		if (flashes[i].shift == shift && flashes[i].idcode == *idp) {
 			/* we have a match, call probe */
 			flash = flashes[i].probe(spi, idp);
 			if (flash)
 				break;
 		}
+	}
 
 	if (!flash) {
 		printf("SF: Unsupported manufacturer %02x\n", *idp);

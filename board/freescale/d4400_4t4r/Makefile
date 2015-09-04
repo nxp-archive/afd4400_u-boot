@@ -1,9 +1,7 @@
 #
-# (C) Copyright 2006
-# Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+# Copyright (C) 2007, Guennadi Liakhovetski <lg@denx.de>
 #
-# See file CREDITS for list of people who contributed to this
-# project.
+# (C) Copyright 2013 Freescale Semiconductor, Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -12,7 +10,7 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -23,31 +21,15 @@
 
 include $(TOPDIR)/config.mk
 
-LIB	:= $(obj)libspi_flash.o
+LIB	= $(obj)lib$(BOARD).o
 
-ifdef CONFIG_SPL_BUILD
-COBJS-$(CONFIG_SPL_SPI_LOAD)	+= spi_spl_load.o
-endif
+COBJS-y	+= d4400_4t4r.o status.o d4400_vid.o ipmi-fsl-4t4r.o
 
-COBJS-$(CONFIG_SPI_FLASH)	+= spi_flash.o
-COBJS-$(CONFIG_SPI_FLASH_ATMEL)	+= atmel.o
-COBJS-$(CONFIG_SPI_FLASH_EON)	+= eon.o
-COBJS-$(CONFIG_SPI_FLASH_MACRONIX)	+= macronix.o
-COBJS-$(CONFIG_SPI_FLASH_MICRON)	+= micron.o
-COBJS-$(CONFIG_SPI_FLASH_SPANSION)	+= spansion.o
-COBJS-$(CONFIG_SPI_FLASH_SST)	+= sst.o
-COBJS-$(CONFIG_SPI_FLASH_STMICRO)	+= stmicro.o
-COBJS-$(CONFIG_SPI_FLASH_WINBOND)	+= winbond.o
-COBJS-$(CONFIG_SPI_FRAM_RAMTRON)	+= ramtron.o
-COBJS-$(CONFIG_SPI_M95XXX) += eeprom_m95xxx.o
-
-COBJS	:= $(COBJS-y)
+COBJS	= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))
 
-all:	$(LIB)
-
-$(LIB): $(obj).depend $(OBJS)
+$(LIB):	$(obj).depend $(OBJS)
 	$(call cmd_link_o_target, $(OBJS))
 
 #########################################################################

@@ -287,6 +287,8 @@ static int genphy_parse_link(struct phy_device *phydev)
 	/* We're using autonegotiation */
 	if (mii_reg & BMSR_ANEGCAPABLE) {
 		u32 lpa = 0;
+
+#ifdef CONFIG_PHY_GIGE
 		u32 gblpa = 0;
 
 		/* Check for gigabit capability */
@@ -298,6 +300,7 @@ static int genphy_parse_link(struct phy_device *phydev)
 			gblpa &= phy_read(phydev,
 					MDIO_DEVAD_NONE, MII_CTRL1000) << 2;
 		}
+#endif
 
 		/* Set the baseline so we only have to set them
 		 * if they're different
@@ -305,6 +308,7 @@ static int genphy_parse_link(struct phy_device *phydev)
 		phydev->speed = SPEED_10;
 		phydev->duplex = DUPLEX_HALF;
 
+#ifdef CONFIG_PHY_GIGE
 		/* Check the gigabit fields */
 		if (gblpa & (PHY_1000BTSR_1000FD | PHY_1000BTSR_1000HD)) {
 			phydev->speed = SPEED_1000;
@@ -315,6 +319,7 @@ static int genphy_parse_link(struct phy_device *phydev)
 			/* We're done! */
 			return 0;
 		}
+#endif
 
 		lpa = phy_read(phydev, MDIO_DEVAD_NONE, MII_ADVERTISE);
 		lpa &= phy_read(phydev, MDIO_DEVAD_NONE, MII_LPA);

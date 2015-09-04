@@ -536,6 +536,10 @@ void board_init_r(gd_t *id, ulong dest_addr)
 	/* Enable caches */
 	enable_caches();
 
+	/* The Malloc area is immediately below the monitor copy in DRAM */
+	malloc_start = dest_addr - TOTAL_MALLOC_LEN;
+	mem_malloc_init (malloc_start, TOTAL_MALLOC_LEN);
+
 	debug("monitor flash len: %08lX\n", monitor_flash_len);
 	board_init();	/* Setup chipselects */
 	/*
@@ -557,10 +561,6 @@ void board_init_r(gd_t *id, ulong dest_addr)
 #ifdef CONFIG_POST
 	post_output_backlog();
 #endif
-
-	/* The Malloc area is immediately below the monitor copy in DRAM */
-	malloc_start = dest_addr - TOTAL_MALLOC_LEN;
-	mem_malloc_init (malloc_start, TOTAL_MALLOC_LEN);
 
 #ifdef CONFIG_ARCH_EARLY_INIT_R
 	arch_early_init_r();

@@ -400,6 +400,26 @@
 		QSPI_WAIT_WHILE_BUSY();\
 	}
 
+/* For SET_QSPI_FLASH_TYPE() and GET_QSPI_FLASH_TYPE(), use the
+ * the qspi type defined above for the SBMR register:
+ *    QSPI_FLASH_TYPE_WINBOND  = 0  (1 in qspi MCR reg)
+ *    QSPI_FLASH_TYPE_SPANSION = 1  (2 in qspi MCR reg)
+ *    QSPI_FLASH_TYPE_MACRONIX = 2  (3 in qspi MCR reg)
+ *    QSPI_FLASH_TYPE_NUMONYX  = 3  (4 in qspi MCR reg)
+ *
+ *  The qspi flash type from the SBMR reg is zero based whereas
+ *  the type from the qspi MCR reg starts at 1.  So there's a +1
+ */
+#define SET_QSPI_FLASH_TYPE(type)\
+{\
+	*((volatile u32*)QSPI_MCR_REG) &= ~QSPI_MCR_VMID_MASK;\
+	*((volatile u32*)QSPI_MCR_REG) |= ((type+1) << QSPI_MCR_VMID_OFFSET);\
+}
+
+#define GET_QSPI_FLASH_TYPE()\
+(\
+	((*((volatile u32*)QSPI_MCR_REG) & QSPI_MCR_VMID_MASK) >> QSPI_MCR_VMID_OFFSET) - 1\
+)
 
 /* The qspi register addresses are broken up hence padding is required. */
 #if !(defined(__KERNEL_STRICT_NAMES) || defined(__ASSEMBLY__))
