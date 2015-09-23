@@ -35,12 +35,14 @@
 #include <asm/arch/iomux.h>
 #include <miiphy.h>
 #include <netdev.h>
+#include <asm/arch/d4400_boards.h>
 
-#include "d4400_4t4r_priv.h"
+extern enum board_type get_board_type(void);
+extern enum board_rev get_board_rev(void);
 
 //#define DEBUG
 
-// Zilker PMBUS defines
+/* Zilker PMBUS defines */
 #define LINEAR_MODE           (0x00)
 #define VOUT_MODE             (0x20)
 #define READ_VOUT             (0x8B)

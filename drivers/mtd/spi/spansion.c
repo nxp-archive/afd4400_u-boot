@@ -486,6 +486,7 @@ struct spi_flash *spi_flash_probe_spansion(struct spi_slave *spi, u8 *idcode)
 		spsn->flash.page_size = QSPI_TX_FIFO_SIZE;
 #endif
 	spsn->flash.memory_map = 0; /* Not a memory mapped device */
+	spsn->flash.spi->dummy_clks = 8; /* Quad read/write */
 
 	debug("SF: Detected %s with page size %u, total %u bytes, speed %i Hz\n",
 		params->name, params->page_size, spsn->flash.size,

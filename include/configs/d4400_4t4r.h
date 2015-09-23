@@ -22,10 +22,6 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-#ifdef CONFIG_D4400_BOARD_4T4R
-
-#endif
-
 #define CONFIG_D4400
 #define CONFIG_DISPLAY_CPUINFO
 #define CONFIG_DISPLAY_BOARDINFO
@@ -167,7 +163,7 @@
 		"${baudrate} ramdisk_size=${ramdisksize} rootfstype=ext2 "\
 		"earlyprintk\0"\
 	"bootcmd_qspi=echo Booting from QSPI FLASH ...; " \
-		"run bootargs_all; sf probe 9:0 50000000 0; "\
+		"run bootargs_all; sf probe 9:0 50000000 40; "\
 		 "sf read ${loadaddr} 0x00120000 0x3F00000; "\
 		 "bootm ${loadaddr}\0"\
 	"bootcmd_ram=echo Booting from RAM ...; run test_tftp; "\
@@ -266,7 +262,7 @@
 
 #define CONFIG_SPI_FLASH_SPEED_MIN_HZ	18000000
 #define CONFIG_SPI_FLASH_SPEED_MAX_HZ	50000000
-#define CONFIG_SPI_FLASH_SPEED_INIT_HZ	18000000 /* Initial speed setting */
+#define CONFIG_SPI_FLASH_SPEED_INIT_HZ	50000000 /* Initial speed setting */
 
 #define CONFIG_SPI_FLASH
 
@@ -277,15 +273,9 @@
 /* D4400 qspi Numonyx mode erase bug work around */
 #if defined CONFIG_SPI_FLASH_MICRON
 	/* D440 qspi has 4-byte address/erase problem in Numonyx/Micron mode.
-	 * Must use one of these methods for workaround.
+	 * Use Spansion mode for workaround.
 	 */
-	/* #define D4400_QSPI_NUMONYX_BUG_WORKAROUND */
-	#ifndef D4400_QSPI_NUMONYX_BUG_WORKAROUND
-		#define D4400_QSPI_NUMONYX_BUG_USE_SPANSION
-	#endif
-
-	/* Quad I/O is not ready */
-	#define D4400_QSPI_QUAD_NOT_READY
+	#define D4400_QSPI_NUMONYX_BUG_USE_SPANSION
 #endif
 
 /* Base address of Uboot */
@@ -318,7 +308,7 @@
 #define CONFIG_ENV_SPI_BUS		9
 #define CONFIG_ENV_SPI_MAX_HZ		CONFIG_SPI_FLASH_SPEED_INIT_HZ
 
-//#define CONFIG_ENV_SPI_MODE		SPI_QUAD_IO
+#define CONFIG_ENV_SPI_MODE		SPI_QUAD_IO
 
 
 /* Enable serial flash command utilties */

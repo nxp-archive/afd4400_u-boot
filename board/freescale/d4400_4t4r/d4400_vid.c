@@ -25,12 +25,15 @@
 #include <command.h>
 #include <configs/d4400_4t4r.h>
 #include <asm/arch/imx-regs.h>
-#include "d4400_4t4r_priv.h"
+#include <asm/arch/d4400_boards.h>
 
 #if defined(CONFIG_VID)
 
 #define INVALID_VALUE   (0.0000)
 #define	MAX_VID_INDEX   (32)
+
+extern enum board_type get_board_type(void);
+extern enum board_rev get_board_rev(void);
 
 /* map for VID to volt */
 static float vid2voltmap[MAX_VID_INDEX] = {
@@ -226,8 +229,7 @@ static s32 setup_vid_volts(float to_volts)
 		to_volts += 0.00004; /* avoid rounding errors */
 		int volts_int = to_volts;
 		int volts_frac = (to_volts - volts_int) * 10000;
-		printf("\nVID: ERROR - requested voltage %d.%04d V"
-		       " is outside supported range\n",
+		printf("\nVID: ERROR - requested voltage %d.%04d V is outside supported range\n",
 		       volts_int, volts_frac);
 		return -1;
 	}
@@ -277,7 +279,7 @@ s32 configure_vid(void)
 
 /*************************** VID commands *************************/
 
-static int atoi (const char *s)
+static int atoi(const char *s)
 {
 	int value;
 
@@ -287,7 +289,7 @@ static int atoi (const char *s)
 	return value;
 }
 
-static float atof (const char *s)
+static float atof(const char *s)
 {
 	float value, div;
 
@@ -336,7 +338,7 @@ static int do_show_vid_regs(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static int do_vid(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[]);
+static int do_vid(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
 U_BOOT_CMD(vid,    3,      1,  do_vid,
 	"VID sub-system for D4400 4T4R",

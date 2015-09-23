@@ -50,9 +50,9 @@
 static unsigned int	bus;
 static unsigned int	cs;
 static unsigned int	mode;
-static int   		bitlen;
-static uchar 		dout[MAX_SPI_BYTES];
-static uchar 		din[MAX_SPI_BYTES];
+static int		bitlen;
+static uchar		dout[MAX_SPI_BYTES];
+static uchar		din[MAX_SPI_BYTES];
 
 static void *pSrc = NULL;
 static void *pDest = NULL;
@@ -69,7 +69,7 @@ static u32 flags = 0;
  * The command prints out the hexadecimal string received via SPI.
  */
 
-int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_spi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct spi_slave *slave;
 	char  *cp = 0;
@@ -77,6 +77,7 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	int   j;
 	int   rcode = 0;
 	u32 max_bitlen = MAX_SPI_BYTES;
+	int n_bytes, i;
 
 	/*
 	 * We use the last specified parameters, unless new ones are
@@ -105,17 +106,17 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			flags = SPI_XFER_BEGIN | SPI_XFER_END;
 
 			cp = argv[3];
-			for(j = 0; *cp; j++, cp++) {
+			for (j = 0; *cp; j++, cp++) {
 				tmp = *cp - '0';
-				if(tmp > 9)
+				if (tmp > 9)
 					tmp -= ('A' - '0') - 10;
-				if(tmp > 15)
+				if (tmp > 15)
 					tmp -= ('a' - 'A');
-				if(tmp > 15) {
+				if (tmp > 15) {
 					printf("Hex conversion error on %c\n", *cp);
 					return 1;
 				}
-				if((j % 2) == 0)
+				if ((j % 2) == 0)
 					dout[j / 2] = (tmp << 4);
 				else
 					dout[j / 2] |= tmp;
@@ -134,10 +135,21 @@ int do_spi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	spi_claim_bus(slave);
-	if(spi_xfer(slave, bitlen, pSrc, pDest,	flags) != 0) {
+	if (spi_xfer(slave, bitlen, pSrc, pDest,	flags) != 0) {
 		printf("Error during SPI transaction\n");
 		rcode = 1;
 	}
+
+	/* Print input */
+	if (pDest) {
+		n_bytes = (bitlen + 7) / 8;
+		i = 0;
+		printf("   Input: ");
+		while (n_bytes--)
+			printf(" %02x", din[i++]);
+		printf("\n");
+	}
+
 	spi_release_bus(slave);
 	spi_free_slave(slave);
 

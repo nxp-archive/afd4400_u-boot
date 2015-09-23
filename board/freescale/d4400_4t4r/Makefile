@@ -23,7 +23,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)lib$(BOARD).o
 
-COBJS-y	+= d4400_4t4r.o status.o d4400_vid.o ipmi-fsl-4t4r.o
+COBJS-y	+= d4400_4t4r.o status.o d4400_vid.o
 
 COBJS	= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)

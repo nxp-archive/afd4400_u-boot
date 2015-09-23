@@ -591,6 +591,16 @@ static u32 qspi_cfg(struct qspi_data *qspi, unsigned int cs,
 	return get_qspi_clk_freq(clk_src_hz, div);
 }
 
+/* Set the latency or dummy clocks */
+int _qspi_set_latency_clk(int dummy_clks)
+{
+	if (dummy_clks > 0x3f)
+		return -EINVAL;
+
+	qspi_reg->lcr = dummy_clks;
+	return 0;
+}
+
 /* Read a small number of bytes from qspi rx fifo.
  * This function can be used to read status, ids, etc.
  */
@@ -775,8 +785,10 @@ static int _qspi_xfer(struct spi_slave *slave, unsigned int bitlen,
 			return ret;
 	}
 
-	/* Check current quad mode setting and change if needed */
+	/* Set dummy clocks before exe command */
+	_qspi_set_latency_clk(slave->dummy_clks);
 
+	/* Execute command */
 	switch (cmd[0]) {
 	case SPINOR_OP_BE:
 	case SPINOR_OP_DIE_ERASE:
@@ -784,6 +796,14 @@ static int _qspi_xfer(struct spi_slave *slave, unsigned int bitlen,
 		QSPI_SEND_CMD(0, cmd[0],	CLEAR_BUFPTR_NONE);
 		/* Caller needs to wait for erase to be done. */
 		break;
+
+
+#define SPINOR_OP_WR_NVCFG	0xb1	/* Write nonvolatile config reg */
+#define SPINOR_OP_WR_VCFG	0x81	/* Write nonvolatile config reg */
+#define SPINOR_OP_WR_EVCR	0x61    /* Write enhance vol cfg register */
+#define SPINOR_OP_WR_EADDR	0xc5	/* Write extended addr reg */
+
+
 #ifdef CONFIG_SPI_FLASH_MICRON
 	case SPINOR_OP_ENQUADIO:	/* Enter quad I/O, Micron */
 #endif
@@ -792,20 +812,29 @@ static int _qspi_xfer(struct spi_slave *slave, unsigned int bitlen,
 	case SPINOR_OP_EX4B:		/* Exit ext addr */
 		QSPI_SEND_CMD(0, cmd[0], CLEAR_BUFPTR_NONE);
 		break;
+#ifdef CONFIG_SPI_FLASH_MICRON
+	case SPINOR_OP_WR_NVCFG:	/* Write nonvol config reg */
+	case SPINOR_OP_WR_VCFG:		/* Write nonvolatile config reg */
+	case SPINOR_OP_WR_EVCR:		/* Write enhance vol cfg reg */
+	case SPINOR_OP_WR_EADDR:	/* Write extended addr reg */
+#endif
 	case SPINOR_OP_WRSR:		/* Write status reg */
-	case SPINOR_OP_WR_NVCFG:	/* Write nonvol config reg, Micron */
 		/* Write to status / config reg */
 		 _qspi_write_tx_fifo((u8 *)p_inbuf, num_bytes);
 		QSPI_SEND_CMD(num_bytes, cmd[0],	CLEAR_BUFPTR_NONE);
 		break;
-#ifndef CONFIG_SPI_FLASH_MICRON
+#ifdef CONFIG_SPI_FLASH_MICRON
+	case SPINOR_OP_RD_NVCFG:	/* Read nonvol config reg */
+	case SPINOR_OP_RD_VCFG:		/* Read nonvolatile config reg */
+	case SPINOR_OP_RD_EVCR:		/* Read enhance vol cfg reg */
+	case SPINOR_OP_RD_EADDR:	/* Read extended addr reg */
+#else
 	case SPINOR_OP_RDCR:		/* Read config reg */
 #endif
 	case SPINOR_OP_RDSR:		/* Read status reg */
 	case SPINOR_OP_RDFSR:		/* Read flag status reg */
 	case SPINOR_OP_BRRD:		/* Read bank reg */
 	case SPINOR_OP_RDID:		/* JEDEC id */
-	case SPINOR_OP_RD_NVCFG:	/* Read nonvol config reg, Micron */
 		QSPI_SET_ADDR(0);
 		QSPI_SEND_CMD(num_bytes, cmd[0],
 			CLEAR_BUFPTR_RXTX);
@@ -837,31 +866,10 @@ static int _qspi_xfer(struct spi_slave *slave, unsigned int bitlen,
 		p_outbuf = (u32 *)(((cmd[1] << 8) | cmd[2]) *
 			flash->sector_size);
 
-#if ((defined CONFIG_SPI_FLASH_MICRON) && (defined D4400_QSPI_NUMONYX_BUG_WORKAROUND))
-		/* BUG WORKAROUND: Qspi Numonyx/Micron mode has a bug with
-		 * SPINOR_OP_SE/0xd8 command.  In 4-byte addr mode, the qspi
-		 * module sends out only 3 addr instead of 4.  Switch to
-		 * Spansion mode temporarily to send the erase command
-		 * which will do it correctly and send 4 addr bytes.
-		 */
-		u8 type = 0;
-		type = GET_QSPI_FLASH_TYPE();
-		if (cmd[0] == SPINOR_OP_SE) {
-			SET_QSPI_FLASH_TYPE(QSPI_FLASH_TYPE_SPANSION);
-		}
-#endif
-
 		/* 16 is a dummy value.  Any sector that the p_outbuf
 		 * falls in is erased.
 		 */
 		ret = _qspi_erase(p_outbuf, 16, cmd[0], flash);
-#if ((defined CONFIG_SPI_FLASH_MICRON) && (defined D4400_QSPI_NUMONYX_BUG_WORKAROUND))
-		/* BUG WORKAROUND: Switch back to original flash type
-		 * after sending erase command in Spansion mode.
-		 */
-		if (cmd[0] == SPINOR_OP_SE)
-			SET_QSPI_FLASH_TYPE(type);
-#endif
 		break;
 	default:
 		printf("%s: Unrecognized command cmd[0]:x%02x\n",

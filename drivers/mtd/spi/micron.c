@@ -44,6 +44,24 @@
 #define MICRON_SR_WIP		(1 << 0) /* Write-in-Progress */
 #define MICRON_FSR_EXTADDR	(1 << 0) /* Extended address mode */
 
+#define READ_FLAG_REG(spi)\
+{\
+	u8 flag = 0;\
+	spi_flash_cmd(spi, SPINOR_OP_RDFSR, &flag, 1);\
+	printf("\tFlag reg: x%02x\n", flag);\
+}
+
+#define READ_MICRON_REG(spi, cmd, bytes, str)\
+{\
+	u8 d[4] = { 0, 0, 0, 0};\
+	int i = 0;\
+	int cnt = bytes;\
+	spi_flash_cmd(spi, cmd, d, bytes);\
+	printf("\tCmd x%02x: ", cmd);\
+	do { printf(" x%02x", d[i++]); } while (--cnt);\
+	printf("  %s\n", str);\
+}
+
 struct micron_spi_flash {
 	struct spi_flash flash;
 	const struct micron_spi_flash_params *params;
@@ -62,6 +80,8 @@ struct micron_spi_flash_params {
 	u16 pages_per_sector;
 	u16 nr_sectors;
 	const char *name;
+	int read_latency_clks;
+	int write_latency_clks;
 };
 
 static const struct micron_spi_flash_params micron_spi_flash_table[] = {
@@ -72,6 +92,8 @@ static const struct micron_spi_flash_params micron_spi_flash_table[] = {
 		.pages_per_sector = 256,
 		.nr_sectors = 2048,
 		.name = "MT25QL01G",
+		.read_latency_clks = 8,  /* Fast read */
+		.write_latency_clks = 0,
 	},
 };
 
@@ -87,9 +109,8 @@ static int micron_wait_ready(struct spi_flash *flash, unsigned long timeout)
 
 		ret = spi_flash_cmd(spi, SPINOR_OP_RDSR, &status,
 			sizeof(status));
-		if (ret) {
+		if (ret)
 			return -1;
-		}
 
 		if ((status & MICRON_SR_WIP) == 0)
 			break;
@@ -102,8 +123,10 @@ static int micron_wait_ready(struct spi_flash *flash, unsigned long timeout)
 	return -1;
 }
 
-
-#if (defined D4400_QSPI_NUMONYX_BUG_WORKAROUND)
+#if (!(defined CONFIG_FSL_D4400_QSPI) & !(defined D4400_QSPI_NUMONYX_BUG_USE_SPANSION))
+/* Set address uses a Micron specific command.  If using Spansion mode is used
+ * as workaround, then this function cannot be used.
+ */
 static int micron_set_extaddr(struct spi_flash *flash, int addrmode)
 {
 	int ret;
@@ -136,6 +159,43 @@ static int micron_set_extaddr(struct spi_flash *flash, int addrmode)
 
 	return ret;
 }
+
+static int micron_set_dummyclks(struct spi_flash *flash, int clks)
+{
+	int ret;
+	u8 buf[2] = {0, 0};
+
+	if (clks > 15) {
+		debug("SF: Dummy clks exceed max of 14: %i\n", clks);
+		ret = -EINVAL;
+		return ret;
+	}
+
+	/* Read current NV cfg value */
+	ret = spi_flash_cmd(flash->spi, SPINOR_OP_RD_NVCFG, buf, 2);
+
+	/* Insert new value */
+	buf[1] &= ~(0x0f << 4);
+	buf[1] |= (clks << 4);
+
+	/* Enable write latch */
+	ret = spi_flash_cmd(flash->spi, SPINOR_OP_WREN, NULL, 0);
+	ret = micron_wait_ready(flash, SPI_FLASH_PROG_TIMEOUT);
+	if (ret < 0) {
+		debug("SF: Enabling Write failed to update dummy clks\n");
+		return ret;
+	}
+
+	/* Write new NV cfg value */
+	ret = spi_flash_cmd(flash->spi, SPINOR_OP_WR_NVCFG, buf, 2);
+	ret = micron_wait_ready(flash, SPI_FLASH_PROG_TIMEOUT);
+	if (ret < 0) {
+		debug("SF: Failed to update update dummy clks\n");
+		return ret;
+	}
+	return ret;
+}
+
 #endif
 
 static int micron_set_mode(struct spi_flash *flash)
@@ -144,10 +204,10 @@ static int micron_set_mode(struct spi_flash *flash)
 	struct spi_slave *spi = flash->spi;
 
 	if (spi->mode & SPI_QUAD_IO) {
-
-		// TODO: Quad mode is not yet functional.
-		printf("WARNING: Qspi quad mode not implemented, default to single I/O.\n");
-		spi->mode = 0;
+		/* Nothing to do.  Read/write will use quad specific
+		 * and Micron flash responds with quad I/O for data
+		 * transfer.
+		 */
 		return 0;
 	}
 	return ret;
@@ -162,6 +222,7 @@ static int micron_read_fast(struct spi_flash *flash, u32 offset,
 	unsigned long page_size;
 	u8 cmd[5];
 	int ret;
+	int clks = flash->spi->dummy_clks; /* Save */
 
 #ifdef CONFIG_FSL_D4400_QSPI
 	/* There are multiple sources accessing the flash, cmd_sf, and env_sf.
@@ -180,22 +241,11 @@ static int micron_read_fast(struct spi_flash *flash, u32 offset,
 
 	/* 4-byte address commands */
 	if (spi->mode & SPI_QUAD_IO) {
-#ifdef D4400_QSPI_QUAD_NOT_READY
-		printf("ERROR: Qspi READ quad I/O not implemented.\n");
-		return -1;
-#else
-		cmd[0] = SPINOR_OP_READ4_1_1_4;  /* ? TBD */
-#endif
+		cmd[0] = SPINOR_OP_READ4_1_1_4;
+		flash->spi->dummy_clks = micron->params->read_latency_clks;
 	} else {
-#if (defined D4400_QSPI_NUMONYX_BUG_USE_SPANSION)
 		/* This command sends 4-byte address regardless. */
 		cmd[0] = SPINOR_OP_READ4;
-#else
-		/* Standard page program command.  Number of address bytes
-		 * is dependent on qspi module and flash device setup.
-		 */
-		cmd[0] = SPINOR_OP_READ;
-#endif
 	}
 
 	cmd[1] = page_addr >> 16;
@@ -205,12 +255,18 @@ static int micron_read_fast(struct spi_flash *flash, u32 offset,
 	debug
 		("READ: 0x%x => cmd = { 0x%02x 0x%02x%02x%02x%02x } len = 0x%x\n",
 		 offset, cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], len);
-	return spi_flash_read_common(flash, cmd, sizeof(cmd), buf, len);
+	ret = spi_flash_read_common(flash, cmd, sizeof(cmd), buf, len);
+
+	/* Restore dummy clock */
+	flash->spi->dummy_clks = clks;
+
+	return ret;
 }
 
 static int micron_write(struct spi_flash *flash, u32 offset,
 	size_t len, const void *buf)
 {
+	struct micron_spi_flash *micron = to_micron_spi_flash(flash);
 	struct spi_slave *spi = flash->spi;
 	unsigned long page_size;
 	size_t chunk_len;
@@ -220,6 +276,7 @@ static int micron_write(struct spi_flash *flash, u32 offset,
 	u32 addr;
 	u32 next_page_start_addr;
 	u32 end_addr;
+	int clks = flash->spi->dummy_clks; /* Save */
 
 #ifdef CONFIG_FSL_D4400_QSPI
 	/* There are multiple sources accessing the flash, cmd_sf, and env_sf.
@@ -260,23 +317,12 @@ static int micron_write(struct spi_flash *flash, u32 offset,
 
 		/* Page program commands */
 		if (spi->mode & SPI_QUAD_IO) {
-#ifdef D4400_QSPI_QUAD_NOT_READY
-			printf("ERROR: Qspi WRITE quad I/O not implemented.\n");
-			return -1;
-#else
-			cmd[0] = SPINOR_OP_PP_4B_1_2_4; /* ? TBD */
-#endif
+			cmd[0] = SPINOR_OP_PP_4B_1_1_4;
+			flash->spi->dummy_clks =
+				micron->params->write_latency_clks;
 		} else {
-#if (defined D4400_QSPI_NUMONYX_BUG_USE_SPANSION)
 			/* This command sends 4-byte address regardless. */
 			cmd[0] = SPINOR_OP_PP_4B;
-#else
-			/* Standard page program command.  Number of address
-			 * bytes is dependent on qspi module and flash device
-			 * setup.
-			 */
-			cmd[0] = SPINOR_OP_PP;
-#endif
 		}
 
 		cmd[1] = (addr >> 24) & 0xff;
@@ -315,6 +361,9 @@ static int micron_write(struct spi_flash *flash, u32 offset,
 		len, offset);
 
 	spi_release_bus(flash->spi);
+
+	/* Restore dummy clock */
+	flash->spi->dummy_clks = clks;
 
 	return ret;
 }
@@ -356,15 +405,7 @@ int micron_erase(struct spi_flash *flash, u32 offset, size_t len)
 	numsec = len / sector_size;
 
 	/* Sector/block erase commands. */
-#if (defined D4400_QSPI_NUMONYX_BUG_USE_SPANSION)
-	/* This command sends 4-byte address regardless */
-	cmd[0] = SPINOR_OP_SE_4B;
-#else
-	/* Standard sector erase command.  Number of address bytes is
-	 * dependent on how qspi module and flash device is setup.
-	 */
-	cmd[0] = SPINOR_OP_SE;
-#endif
+	cmd[0] = SPINOR_OP_SE_4B; /* 4-byte addr command */
 
 	/* Lower 16-bit address is zero because sector is 64KB or larger */
 	cmd[3] = 0x00;
@@ -459,20 +500,17 @@ struct spi_flash *spi_flash_probe_micron(struct spi_slave *spi, u8 *idcode)
 		micron->flash.page_size = QSPI_TX_FIFO_SIZE;
 #endif
 	micron->flash.memory_map = 0; /* Not a memory mapped device */
+	micron->flash.spi->dummy_clks = 0;
 
 	debug("SF: Detected %s with page size %u, total %u bytes, speed %i Hz\n",
 		params->name, params->page_size, micron->flash.size,
 		spi->speed_hz);
 
-#if (defined D4400_QSPI_NUMONYX_BUG_WORKAROUND)
-	/* Set address mode if qspi is in Numonyx mode. If using Spansion mode
-	 * as workaround, then DON'T need to set address mode as we will use
-	 * 4-byte address specific commands.
+	/* Set address 4-byte address mode if qspi is in Numonyx mode.
+	 * If using Spansion mode as workaround, then DON'T need to set
+	 * address mode as we will use 4-byte address specific commands.
 	 */
-
-	/* Set extended 4-byte address mode */
-	micron_set_extaddr(&micron->flash, 1);
-#endif
+	/* micron_set_extaddr(&micron->flash, 1); */
 
 	/* Set IO mode */
 	ret = micron_set_mode(&micron->flash);
@@ -480,6 +518,7 @@ struct spi_flash *spi_flash_probe_micron(struct spi_slave *spi, u8 *idcode)
 		printf("SF: Error in setting I/O mode of Micron flash\n");
 		goto out_err;
 	}
+
 	return &micron->flash;
 
 out_err:

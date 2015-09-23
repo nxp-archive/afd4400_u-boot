@@ -61,11 +61,15 @@
 #define SPINOR_OP_BRWR		0x17	/* Write Bank reg */
 
 /* Used for Micron flashes only. */
-#define SPINOR_OP_RD_EVCR	0x65    /* Read EVCR register */
-#define SPINOR_OP_WD_EVCR	0x61    /* Write EVCR register */
-#define SPINOR_OP_DIE_ERASE	0xC4	/* Die erase */
-#define SPINOR_OP_WR_NVCFG	0xb1	/* Write nonvolatile config reg */
 #define SPINOR_OP_RD_NVCFG	0xb5	/* Read nonvolatile config reg */
+#define SPINOR_OP_WR_NVCFG	0xb1	/* Write nonvolatile config reg */
+#define SPINOR_OP_RD_VCFG	0x85	/* Read nonvolatile config reg */
+#define SPINOR_OP_WR_VCFG	0x81	/* Write nonvolatile config reg */
+#define SPINOR_OP_RD_EVCR	0x65    /* Read enhance vol cfg reg */
+#define SPINOR_OP_WR_EVCR	0x61    /* Write enhance vol cfg reg */
+#define SPINOR_OP_RD_EADDR	0xc8	/* Read extended addr reg */
+#define SPINOR_OP_WR_EADDR	0xc5	/* Write extended addr reg */
+#define SPINOR_OP_DIE_ERASE	0xC4	/* Die erase */
 #define SPINOR_OP_PP_4B_1_2_4   0X12	/* Quad page program */
 #define SPINOR_OP_ENQUADIO	0x35	/* Enter quad I/O mode, Micron */
 

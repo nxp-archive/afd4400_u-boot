@@ -53,6 +53,7 @@
  *   max_write_size:	If non-zero, the maximum number of bytes which can
  *		be written at once, excluding command bytes.
  *   speedHz:	Clock speed of the spi bus in Hz.
+ *   dummy_clks: Dummy clks before slave driven data is valid (qspi).
  *   mode:      Spi mode, see spi.h for flags.
  */
 struct spi_slave {
@@ -60,6 +61,7 @@ struct spi_slave {
 	unsigned int	cs;
 	unsigned int	max_write_size;
 	unsigned int	speed_hz;
+	unsigned int	dummy_clks;
 	unsigned int	mode;
 };
 

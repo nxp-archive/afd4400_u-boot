@@ -42,8 +42,7 @@
 #endif
 
 #include <malloc.h>
-#include "d4400_4t4r_priv.h"
-#include "ipmi-fsl-4t4r.h"
+#include <asm/arch/d4400_boards.h>
 #include <asm/arch/ipmi-eeprom-util.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -124,7 +123,7 @@ enum FPGA_GVDD_VSEL {
 #define OCRAM_ADDR		(0x60000000)
 
 #define ddr_reg32_write(addr, val) { *((volatile u32*)addr) = val; }
-#define ddr_reg32_read(addr) ( *((volatile u32*)addr) )
+#define ddr_reg32_read(addr) (*((volatile u32*)addr) )
 
 static enum board_type brd_type = BOARD_TYPE_UNKNOWN;
 static enum board_rev  brd_rev  = BOARD_REV_UNKNOWN;
@@ -162,10 +161,6 @@ static void get_board_info(void)
 			brd_type = ipmi_get_board_type(ipmi_4t4r.board.name_str);
 			brd_rev = ipmi_get_board_rev(ipmi_4t4r.board.partnum_str);
 		}
-#ifdef FORCE_4T4R_BOARD_TYPE
-		brd_type = BOARD_TYPE_D4400_4T4R;
-		brd_rev = BOARD_REV_A;
-#endif
 	}
 }
 
@@ -233,13 +228,13 @@ static void dram_cal(void)
 	u32 *src_ptr;
 	u32 *dest_ptr;
 
-	// Copy DDR initialization code into OCRAM
+	/* Copy DDR initialization code into OCRAM */
 	dest_ptr = (u32*)OCRAM_ADDR;
 	src_ptr = (u32*)ddr_calibrate;
 	while (src_ptr < ((u32*)dram_cal)) {
 		*dest_ptr++ = *src_ptr++;
 	}
-	// and run it
+	/* and run it */
 	((void (*)(void))OCRAM_ADDR)();
 }
 
@@ -301,6 +296,8 @@ iomux_cfg_t gpio_led_pads[] = {
 static void setup_iomux_leds(void)
 {
 	d4400_iomux_setup_multiple_pads(gpio_led_pads, ARRAY_SIZE(gpio_led_pads));
+	gpio_direction_output(D4400_GPIO_NR(5, 29), 0); /* GpioE 29 */
+	gpio_direction_output(D4400_GPIO_NR(5, 30), 0); /* GpioE 30 */
 }
 #endif
 
@@ -320,10 +317,6 @@ iomux_cfg_t enet_pads[] = {
 iomux_cfg_t mdio_pads[] = {
 	D4400_PAD_TSEC_MDC_GPIO_D09 | MUX_PAD_CTRL(MDIO_PAD_CTRL),
 	D4400_PAD_TSEC_MDIO_GPIO_D10 | MUX_PAD_CTRL(MDIO_PAD_CTRL),
-};
-
-iomux_cfg_t lan87_mode_pads[] = {
-
 };
 
 static void setup_iomux_enet(void)
@@ -379,13 +372,11 @@ static void setup_enet(void)
 	/* Checking BOOT MODE */
 	/* If BOOT mode is SGMII setup SERDES */
 
-	if (d4400_get_tsec_flags() & TSEC_SGMII) {
+	if (d4400_get_tsec_flags() & TSEC_SGMII)
 		setup_serdes_sgmii_mode();
-	}
-	/* If BOOT mode is RMII/RGMII setup IOMUX */
-	else {
+	else
+		/* If BOOT mode is RMII/RGMII setup IOMUX */
 		setup_iomux_enet();
-	}
 }
 
 int board_eth_init(bd_t *bis)
@@ -405,12 +396,10 @@ int board_eth_init(bd_t *bis)
 	else if (flags & TSEC_GIGABIT) {
 		tsec_info[num].phyaddr = TSEC1_PHY_ADDR_RGMII;
 		printf("RGMII: ");
-	}
-	else if (flags & TSEC_REDUCED) {
+	} else if (flags & TSEC_REDUCED) {
 		tsec_info[num].phyaddr = TSEC1_PHY_ADDR_RMII;
 		printf("RMII: ");
-	}
-	else
+	} else
 		printf("MII: ");
 	num++;
 #endif
@@ -495,7 +484,7 @@ void setup_qspi(void)
 	qspi_reg->rbct = (1 << 8);
 
 	/* AMBA control reg (for AHB commands) */
-	qspi_reg->acr = 0x803;  /* Default = 0x803 */
+	qspi_reg->acr = (16 << 11) | 0x03;  /* Default = 0x803 */
 
 	val32 = qspi_reg->mcr;
 
@@ -517,8 +506,7 @@ void setup_qspi(void)
 		val32 |= (4 << 3);	/* Numonyx */
 #endif
 		qspi_reg->lcr = 0x00;
-	}
-	else /* (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_WINBOND) */
+	} else /* (QUERY_QSPI_FLASH_TYPE() == QSPI_FLASH_TYPE_WINBOND) */
 		val32 |= (1 << 3);	/* Winbond */
 
 	/* Drive IO[3:2] high (default) during idle */
@@ -562,7 +550,7 @@ void qspi_test(void)
 	val32 |= (2 << 3);	/* 2-Spansion            */
 	writel(val32, QSPI_MCR_REG);
 
-	while(1) {
+	while (1) {
 		/* In order to modify b[19:16] to set IOFA/B[2:3] signals
 		 * hi/low these steps must be followed:
 		 *
@@ -624,9 +612,7 @@ iomux_cfg_t spi_pads[] = {
 	D4400_PAD_SPI5_MISO_eCSPI5_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	D4400_PAD_SPI5_CLK_eCSPI5_CLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	D4400_PAD_SPI5_SS0_eCSPI5_SS0 | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	D4400_PAD_SPI5_SS1_eCSPI5_SS1 | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	D4400_PAD_GPIOA28_eCSPI5_SS2 | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	D4400_PAD_GPIOA29_eCSPI5_SS3 | MUX_PAD_CTRL(SPI_PAD_CTRL),
+	D4400_PAD_SPI5_SS1_GPIOD31 | MUX_PAD_CTRL(SPI_PAD_CTRL), /* Jcpll reset */
 	/* PA connector 1, J63 */
 	D4400_PAD_SPI7_MOSI_eCSPI7_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	D4400_PAD_SPI7_MISO_eCSPI7_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -647,6 +633,9 @@ iomux_cfg_t spi_pads[] = {
 static void setup_iomux_spi(void)
 {
 	d4400_iomux_setup_multiple_pads(spi_pads, ARRAY_SIZE(spi_pads));
+
+	/* Jcpll reset is active low, set high */
+	gpio_direction_output(D4400_GPIO_NR(4, 31), 1); /* GpioD 31 */
 }
 #endif
 
