@@ -169,17 +169,20 @@
 	"bootcmd_ram=echo Booting from RAM ...; run test_tftp; "\
 		"run bootargs_all;tftp ${loadaddr} ${tftp_path}kernel_fit_qspi.itb;"\
 		"bootm ${loadaddr}\0"\
+	"get_fit=tftp ${loadaddr} ${tftp_path}kernel_fit_qspi.itb; "\
+		"sf probe 9:0 50000000 40;sf erase 0x0120000 0x04000000; "\
+		"sf write ${loadaddr} 0x0120000 ${filesize}\0 "\
 	"get_rfs=tftp ${loadaddr} ${tftp_path}rootfs.jffs2; "\
-		"sf probe 9:0 50000000 0;sf erase 0x04120000 0x03EE0000; "\
+		"sf probe 9:0 50000000 40;sf erase 0x04120000 0x03EE0000; "\
 		"sf write ${loadaddr} 0x04120000 ${filesize}\0 "\
 	"get_uboot1=tftp ${loadaddr} ${tftp_path}u-boot-sha256.d4400; "\
-		"sf probe 9:0 50000000 0;sf erase 0x0 0x80000; "\
+		"sf probe 9:0 50000000 40;sf erase 0x0 0x80000; "\
 		"sf write ${loadaddr} 0x0 ${filesize}\0 "\
 	"get_uboot2=tftp ${loadaddr} ${tftp_path}u-boot-sha256.d4400; "\
-		"sf probe 9:0 50000000 0;sf erase 0xA0000 0x80000; "\
+		"sf probe 9:0 50000000 40;sf erase 0xA0000 0x80000; "\
 		"sf write ${loadaddr} 0xA0000 ${filesize}\0 "\
 	"test_tftp=ping ${serverip}\0"\
-	"tftp_path=release/\0"\
+	"tftp_path=\0"\
 	"serverip=10.69.13.69\0"
 
 #define CONFIG_BOOTCOMMAND \
