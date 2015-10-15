@@ -169,6 +169,7 @@
 	"bootcmd_ram=echo Booting from RAM ...; run test_tftp; "\
 		"run bootargs_all;tftp ${loadaddr} ${tftp_path}kernel_fit_qspi.itb;"\
 		"bootm ${loadaddr}\0"\
+	"bootcmd=run bootcmd_qspi\0"\
 	"get_fit=tftp ${loadaddr} ${tftp_path}kernel_fit_qspi.itb; "\
 		"sf probe 9:0 50000000 40;sf erase 0x0120000 0x04000000; "\
 		"sf write ${loadaddr} 0x0120000 ${filesize}\0 "\
@@ -181,8 +182,12 @@
 	"get_uboot2=tftp ${loadaddr} ${tftp_path}u-boot-sha256.d4400; "\
 		"sf probe 9:0 50000000 40;sf erase 0xA0000 0x80000; "\
 		"sf write ${loadaddr} 0xA0000 ${filesize}\0 "\
+	"get_ipmi_4t4r21=tftp ${loadaddr} ${tftp_path}fsl_4t4r21_ipmi_eeprom_v1_0.bin; "\
+		"i2c dev 4;i2c write ${loadaddr} 0x54 0.1 0x100\0"\
+	"ipmi_verify=i2c dev 4;i2c read 0x54 0.1 0x100 0x90800000; "\
+		"md.b 0x90800000 0x100\0"\
 	"test_tftp=ping ${serverip}\0"\
-	"tftp_path=\0"\
+	"tftp_path=/\0"\
 	"serverip=10.69.13.69\0"
 
 #define CONFIG_BOOTCOMMAND \
