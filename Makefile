@@ -24,9 +24,13 @@
 VERSION = 2013
 PATCHLEVEL = 04
 SUBLEVEL =
+<<<<<<< HEAD
+EXTRAVERSION = ".Freescale_D4400_v2.7.4"
+=======
 EXTRAVERSION = ".Freescale"
 TAG = `git tag -l 'DFE_v*' | tail -n 1`
 
+>>>>>>> 36c9aab8d9db790701fe120155f3fb16737c0220
 ifneq "$(SUBLEVEL)" ""
 U_BOOT_VERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION).$(TAG)
 else
