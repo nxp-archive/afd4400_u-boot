@@ -66,6 +66,12 @@
 #define CONFIG_SYS_I2C_EEPROM_ADDR_LEN          1
 #define CONFIG_SYS_I2C_EEPROM_BUS_NUM		4
 #define CONFIG_SYS_I2C_EEPROM_SPEED_HZ		50000
+/* Note that large eeproms that need more than 16 address bits
+ * use bits in the control byte (i2c slave address byte) to extend
+ * the address bits.  For example, 128K byte eeprom (17 addr bits
+ * needed) uses 2 byte address plus 1 bit in the control reg.
+ */
+#define CONFIG_SYS_I2C_EEPROM_ADDRLEN_MAX       2
 
 #define CONFIG_VID
 /* ZL6105 VID configuration */
@@ -167,24 +173,24 @@
 		 "sf read ${loadaddr} 0x00120000 0x3F00000; "\
 		 "bootm ${loadaddr}\0"\
 	"bootcmd_ram=echo Booting from RAM ...; run test_tftp; "\
-		"run bootargs_all;tftp ${loadaddr} ${tftp_path}kernel_fit_qspi.itb;"\
+		"run bootargs_all;tftp ${loadaddr} ${tftp_path}kernel_fit.4t4r.itb;"\
 		"bootm ${loadaddr}\0"\
 	"bootcmd=run bootcmd_qspi\0"\
-	"get_fit=tftp ${loadaddr} ${tftp_path}kernel_fit_qspi.itb; "\
+	"get_fit=tftp ${loadaddr} ${tftp_path}kernel_fit.4t4r.itb; "\
 		"sf probe 9:0 50000000 40;sf erase 0x0120000 0x04000000; "\
 		"sf write ${loadaddr} 0x0120000 ${filesize}\0 "\
 	"get_rfs=tftp ${loadaddr} ${tftp_path}rootfs.jffs2; "\
 		"sf probe 9:0 50000000 40;sf erase 0x04120000 0x03EE0000; "\
 		"sf write ${loadaddr} 0x04120000 ${filesize}\0 "\
-	"get_uboot1=tftp ${loadaddr} ${tftp_path}u-boot-sha256.d4400; "\
+	"get_uboot1=tftp ${loadaddr} ${tftp_path}u-boot-sha256.4t4r.d4400; "\
 		"sf probe 9:0 50000000 40;sf erase 0x0 0x80000; "\
 		"sf write ${loadaddr} 0x0 ${filesize}\0 "\
-	"get_uboot2=tftp ${loadaddr} ${tftp_path}u-boot-sha256.d4400; "\
+	"get_uboot2=tftp ${loadaddr} ${tftp_path}u-boot-sha256.4t4r.d4400; "\
 		"sf probe 9:0 50000000 40;sf erase 0xA0000 0x80000; "\
 		"sf write ${loadaddr} 0xA0000 ${filesize}\0 "\
-	"get_ipmi_4t4r21=tftp ${loadaddr} ${tftp_path}fsl_4t4r21_ipmi_eeprom_v1_0.bin; "\
-		"i2c dev 4;i2c write ${loadaddr} 0x54 0.1 0x100\0"\
-	"ipmi_verify=i2c dev 4;i2c read 0x54 0.1 0x100 0x90800000; "\
+	"ipmi_verify1=i2c dev 4;i2c read 0x54 0.1 0x100 0x90800000; "\
+		"md.b 0x90800000 0x100\0"\
+	"ipmi_verify2=i2c dev 4;i2c read 0x54 0.2 0x100 0x90800000; "\
 		"md.b 0x90800000 0x100\0"\
 	"test_tftp=ping ${serverip}\0"\
 	"tftp_path=/\0"\

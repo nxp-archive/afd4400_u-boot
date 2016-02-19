@@ -23,6 +23,8 @@ enum board_type ipmi_get_board_type(char *name_str)
 		type = BOARD_TYPE_D4400_RDB;
 	else if (strstr(name_str, D4400_4T4R_NAME_STR) != NULL)
 		type = BOARD_TYPE_D4400_4T4R;
+	else if (strstr(name_str, D4400_21RRH_NAME_STR) != NULL)
+		type = BOARD_TYPE_D4400_21RRH;
 
 	return type;
 }

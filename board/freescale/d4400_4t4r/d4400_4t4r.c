@@ -135,31 +135,50 @@ static const char _4t4r_rev_letter[4] = {
 };
 
 int configure_vid(void);
-int read_system_eeprom(u8 *buf, int num);
+int read_system_eeprom(u8 *buf, int num, int addrlen);
 
 static void get_board_info(void)
 {
 	int ret;
 	u8 buf[IPMI_EEPROM_DATA_SIZE];
+	int addrlen;
 
 	if (!board_checked) {
 
 		board_checked = 1;
-		brd_type = BOARD_TYPE_UNKNOWN;
-		brd_rev  = BOARD_REV_UNKNOWN;
+		brd_type = BOARD_TYPE_D4400_4T4R;
+		brd_rev  = BOARD_REV_A;
 
-		memset(buf, 0, IPMI_EEPROM_DATA_SIZE);
-		ret = read_system_eeprom(buf, IPMI_EEPROM_DATA_SIZE);
-		if (ret) {
-			printf("ERROR: Unable to read system eeprom at address x%02x\n",
-				CONFIG_SYS_I2C_EEPROM_ADDR);
-			return;
+		/* Try three different address length to handle different
+		 * eeprom sizes.
+		 */
+		addrlen = 1;
+		while (addrlen <= CONFIG_SYS_I2C_EEPROM_ADDRLEN_MAX) {
+
+			memset(buf, 0, IPMI_EEPROM_DATA_SIZE);
+			ret = read_system_eeprom(buf, IPMI_EEPROM_DATA_SIZE, addrlen);
+			if (ret) {
+				printf("ERROR: Failed to read eeprom addr x%02x, using defaults\n",
+					CONFIG_SYS_I2C_EEPROM_ADDR);
+				return;
+			}
+			ret = ipmi_create(buf, &ipmi_4t4r);
+			if (!ret)
+				break;
+			else
+				++addrlen;
 		}
 
-		ret = ipmi_create(buf, &ipmi_4t4r);
-		if (!ret) {
+		if ((!ret) && (addrlen <= CONFIG_SYS_I2C_EEPROM_ADDRLEN_MAX)) {
 			brd_type = ipmi_get_board_type(ipmi_4t4r.board.name_str);
 			brd_rev = ipmi_get_board_rev(ipmi_4t4r.board.partnum_str);
+
+			/* If necessary, decode multi-record info here */
+		} else {
+			printf("ERROR: Unable to find IPMI data in eeprom: ");
+			printf("i2c addr x%02x  addrlen %i\n",
+				CONFIG_SYS_I2C_EEPROM_ADDR, --addrlen);
+			printf("       Using defaults\n");
 		}
 	}
 }
@@ -962,6 +981,9 @@ int board_init(void)
 	case BOARD_TYPE_D4400_4T4R:
 		printf("Board: D4400-4T4R, Rev %c\n", rev_letter);
 		break;
+	case BOARD_TYPE_D4400_21RRH:
+		printf("Board: D4400-21RRH, Rev %c\n", rev_letter);
+		break;
 	default:
 		printf("Board: D4400-???\n");
 		break;
@@ -1019,7 +1041,7 @@ int D4400_QueryBootFlashTypeNOR(void)
 		return 0;
 }
 
-int read_system_eeprom(u8 *buf, int num)
+int read_system_eeprom(u8 *buf, int num, int addrlen)
 {
 	int ret = 0;
 	int old_i2c_dev;
@@ -1031,7 +1053,7 @@ int read_system_eeprom(u8 *buf, int num)
 	ret |= i2c_set_bus_num(CONFIG_SYS_I2C_EEPROM_BUS_NUM);
 	ret |= i2c_set_bus_speed(CONFIG_SYS_I2C_EEPROM_SPEED_HZ);
 	ret |= i2c_read(CONFIG_SYS_I2C_EEPROM_ADDR, 0,
-		CONFIG_SYS_I2C_EEPROM_ADDR_LEN, buf, num);
+		addrlen, buf, num);
 
 	i2c_set_bus_num(old_i2c_dev);
 	i2c_set_bus_speed(old_i2c_speed);

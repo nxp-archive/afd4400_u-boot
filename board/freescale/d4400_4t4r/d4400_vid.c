@@ -235,6 +235,7 @@ static s32 setup_vid_volts(float to_volts)
 	}
 	switch (get_board_type()) {
 	case BOARD_TYPE_D4400_4T4R:
+	case BOARD_TYPE_D4400_21RRH:
 		ret = setup_ir36021_vid_volts(to_volts);
 		break;
 	default:
@@ -329,6 +330,7 @@ static int do_show_vid_regs(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	switch (get_board_type()) {
 	case BOARD_TYPE_D4400_4T4R:
+	case BOARD_TYPE_D4400_21RRH:
 		dump_ir36021_regs();
 		break;
 	default:
