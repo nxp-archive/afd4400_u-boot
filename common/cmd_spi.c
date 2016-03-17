@@ -144,9 +144,8 @@ int do_spi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (pDest) {
 		n_bytes = (bitlen + 7) / 8;
 		i = 0;
-		printf("   Input: ");
 		while (n_bytes--)
-			printf(" %02x", din[i++]);
+			printf("%02x", din[i++]);
 		printf("\n");
 	}
 
