@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Freescale Semiconductor, Inc.
+ * Copyright 2015-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -21,7 +21,12 @@ enum board_type ipmi_get_board_type(char *name_str)
 		type = BOARD_TYPE_D4400_EVB;
 	else if (strstr(name_str, D4400_RDB_NAME_STR) != NULL)
 		type = BOARD_TYPE_D4400_RDB;
+	else if (strstr(name_str, D4400_4T4RK1_NAME_STR) != NULL)
+		type = BOARD_TYPE_D4400_4T4RK1;
 	else if (strstr(name_str, D4400_4T4R_NAME_STR) != NULL)
+		/* strstr() used for catch-all for boards with "4T4R"
+		 * substring.
+		*/
 		type = BOARD_TYPE_D4400_4T4R;
 	else if (strstr(name_str, D4400_21RRH_NAME_STR) != NULL)
 		type = BOARD_TYPE_D4400_21RRH;
@@ -43,6 +48,8 @@ enum board_rev ipmi_get_board_rev(char *partnum_str)
 		rev = BOARD_REV_D;
 	else if (strstr(partnum_str, REVE_STR) != NULL)
 		rev = BOARD_REV_E;
+	else if (strstr(partnum_str, REVF_STR) != NULL)
+		rev = BOARD_REV_F;
 
 	return rev;
 }

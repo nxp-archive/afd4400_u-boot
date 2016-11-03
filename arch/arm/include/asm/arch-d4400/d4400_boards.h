@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Freescale Semiconductor, Inc.
+ * Copyright 2015-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -19,6 +19,7 @@
 #define D4400_RDB_NAME_STR	"RDB"
 #define D4400_4T4R_NAME_STR	"4T4R"
 #define D4400_21RRH_NAME_STR	"21RRH"
+#define D4400_4T4RK1_NAME_STR	"4T4RK1"
 
 /* Name string is matched against revision name.  Only
  * part of the substring needs to match.
@@ -28,6 +29,7 @@
 #define REVC_STR	"REV C"
 #define REVD_STR	"REV D"
 #define REVE_STR	"REV E"
+#define REVF_STR	"REV F"
 
 enum board_type {
 	BOARD_TYPE_UNKNOWN = -1,
@@ -35,6 +37,7 @@ enum board_type {
 	BOARD_TYPE_D4400_RDB = 1,
 	BOARD_TYPE_D4400_4T4R = 2,
 	BOARD_TYPE_D4400_21RRH = 3,
+	BOARD_TYPE_D4400_4T4RK1 = 4,
 };
 
 enum board_rev {
@@ -44,6 +47,7 @@ enum board_rev {
 	BOARD_REV_C = 2,
 	BOARD_REV_D = 3,
 	BOARD_REV_E = 4,
+	BOARD_REV_F = 5,
 };
 
 enum board_type ipmi_get_board_type(char *name_str);
